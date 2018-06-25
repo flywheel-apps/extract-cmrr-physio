@@ -30,17 +30,6 @@ mkdir ${WORK_DIR}
 
 
 ##############################################################################
-# Parse configuration
-
-if [[ -f $CONFIG_FILE ]]; then
-  eval $(jq -r '.config | to_entries[] | "config_\(.key)=\(.value)"' $CONFIG_FILE)
-else
-  CONFIG_FILE=$FLYWHEEL_BASE/manifest.json
-  eval $(jq -r '.config | to_entries[] | "config_\(.key)=\(.value.default)"' $CONFIG_FILE)
-fi
-
-
-##############################################################################
 # Handle INPUT
 
 # The input to this Gear should be a zipped DICOM archive
@@ -65,7 +54,7 @@ if [[ "$input_file" == *.zip ]] ; then
   # If there is no unzipped directory, check for PAR/REC files
   if [[ -z "${dicom_input}" ]]; then
     echo -e "$CONTAINER  No input file was found!"
-    exit 1  
+    exit 1
   fi
 else
   echo -e "$CONTAINER  No valid input file was found!"
@@ -102,4 +91,3 @@ else
 fi
 
 exit 0
-
