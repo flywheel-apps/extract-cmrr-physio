@@ -8,9 +8,13 @@
   "source": "https://github.com/flywheel-apps/extract-cmrr-physio",
   "license": "MIT",
   "flywheel": "0",
-  "version": "0.1.1",
+  "version": "0.1.1-c1",
   "custom": {
-    "docker-image": "flywheel/extract-cmrr-physio:0.1.1"
+    "docker-image": "flywheel/extract-cmrr-physio:0.1.1",
+    "gear-builder": {
+      "category": "converter",
+      "image": "flywheel/extract-cmrr-physio:latest"
+    }
   },
   "inputs": {
     "DICOM_ARCHIVE": {
@@ -23,5 +27,6 @@
       }
     }
   },
-  "config": {}
+  "config": {},
+  "command": ". run"
 }
