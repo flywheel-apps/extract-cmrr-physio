@@ -15,7 +15,7 @@ import json
 flywheelv0 = "/flywheel/v0"
 environ_json = '/tmp/gear_environ.json'
 
-##--------    Gear Specific files/folders   --------##
+##--------  Gear Specific files/folders/values  ----##
 tic_len = 2.5e-3  # seconds, length of one "tick"
 
 

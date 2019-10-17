@@ -28,7 +28,7 @@
     }
   },
   "config": {
-    "Generate Bids": {
+    "Generate_Bids": {
       "description": "Generate BIDS compatible physio files",
       "type" : "boolean",
       "default" : false
