@@ -27,6 +27,13 @@
       }
     }
   },
-  "config": {},
-  "command": ". run"
+  "config": {
+    "Generate Bids": {
+      "description": "Generate BIDS compatible physio files",
+      "type" : "boolean",
+      "default" : false
+    }
+  },
+
+  "command": "python3 run.py"
 }
