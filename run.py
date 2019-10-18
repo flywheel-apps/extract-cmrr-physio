@@ -67,6 +67,7 @@ def physio_qc(physio_dict,new_vol_tics,output_dir):
     ax.axvline(vol_time[-1]+dt,yl,yh,color='r',linewidth=1.5,label='Volume Acquisition end')
 
     # Set the plot layout to tight and add a legend
+    ax.set_title(phys_name)
     pl.tight_layout()
     pl.legend()
 
@@ -94,8 +95,8 @@ def run_qc_on_physio_logs(context):
             continue
 
         # Otherwise extract the dict and pass that to the qc function
-        physio_dict = context.custom_dict['physio-dicts']['physio']
-        physio_qc(physio_dict, new_vol_tics)
+        physio_dict = context.custom_dict['physio-dicts'][physio]
+        physio_qc(physio_dict, new_vol_tics,context.output_dir)
 
     return
 
@@ -167,7 +168,7 @@ def create_physio_dicts_from_logs(context):
     """
 
     # Set the output dir
-    physio_output_dir = context.get_output_dir()
+    physio_output_dir = context.output_dir
 
     # First let's check the output.  We'll try to make this robust for any measurement:
     context.log.debug('Globbing Physio')
@@ -245,7 +246,19 @@ def dicts2bids(physio_dict, new_vol_ticks):
     return bids_file
 
 
-def bids_o_matic_9000(physio_output_dir, raw_dicom, context):
+def bids_o_matic_9000(raw_dicom, context):
+    """
+    This function takes physio.log data that's been convered to physio dict objects (stored in gear context custom_dict{}
+    This creates files from those dictionaries in bidds format.
+
+    :param raw_dicom: the raw dicom file (incase we need to go into it for naming purposes)
+    :param context: the gear context
+    :return: NOTHING
+    """
+
+    # Set the output dir
+    physio_output_dir = context.output_dir
+
     # First let's check the output.  We'll try to make this robust for any measurement:
     context.log.debug('Globbing Physio')
     all_physio = glob.glob(op.join(physio_output_dir, '*.log'))
@@ -258,6 +271,7 @@ def bids_o_matic_9000(physio_output_dir, raw_dicom, context):
     context.log.debug('extracting matches value')
     context.log.debug(print(context.get_input('DICOM_ARCHIVE')))
     context.log.debug(print(raw_dicom))
+    dicom = pydicom.read_file(raw_dicom)
 
     # See if the "info" tag is filled and has the "Series Description" key:
     matches = context.get_input('DICOM_ARCHIVE')['object']['info']
@@ -271,7 +285,6 @@ def bids_o_matic_9000(physio_output_dir, raw_dicom, context):
         # But first warn the user
         context.log.warning('dicom metadata missing values.  Extracting "protocol name" from dicom for bids naming')
         context.log.debug('loading {}'.format(raw_dicom))
-        dicom = pydicom.read_file(raw_dicom)
         context.log.debug('dicom protocol name: {}'.format(dicom.ProtocolName))
 
         # If the protocol name is empty in the dicom, then this is all just messed up
@@ -332,7 +345,7 @@ def bids_o_matic_9000(physio_output_dir, raw_dicom, context):
         np.savetxt(physio_output, bids_file, fmt='%d', delimiter='\t')
 
         # Zip the file
-        gzip_command = ['gzip',physio_output]
+        gzip_command = ['gzip','-f',physio_output]
         exec_command(context, gzip_command)
 
         # Now create and save the .json file
@@ -352,7 +365,7 @@ def bids_o_matic_9000(physio_output_dir, raw_dicom, context):
 
 
 def main():
-    shutil.copy('config.json','/flywheel/v0/output/config.json')
+    #shutil.copy('config.json','/flywheel/v0/output/config.json')
     with flywheel.gear_context.GearContext() as gear_context:
 
         #### Setup logging as per SSE best practices (Thanks Andy!)
@@ -384,11 +397,10 @@ def main():
 
         # Now we need to unzip it:
         uz_dir = op.join(flywheelv0, 'unzipped_dicom')
-        unzip_dicom_command = ['unzip', dicom, '-d', uz_dir]
+        unzip_dicom_command = ['unzip','-o', dicom, '-d', uz_dir]
 
         ###########################################################################
         # Try to run the unzip command:
-
         try:
             exec_command(gear_context, unzip_dicom_command)
         except Exception as e:
@@ -400,6 +412,7 @@ def main():
         raw_dicom = glob.glob(op.join(uz_dir, '*.dicom', '*.dcm'))
 
         if len(raw_dicom) > 1:
+            print(raw_dicom)
             gear_context.log.fatal(
                 'Dicom structure contains too many dicoms, unrecognized CMRR physio format for this gear')
 
@@ -439,7 +452,7 @@ def main():
 
         gear_context.log.debug('Performing PhysioQC')
         try:
-            create_physio_dicts_from_logs(gear_context)
+            run_qc_on_physio_logs(gear_context)
         except Exception as e:
             gear_context.log.warning(e, )
             gear_context.log.warning('Unable to run qc', )
