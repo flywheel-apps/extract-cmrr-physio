@@ -1,3 +1,4 @@
 flywheel-sdk
-glob
 numpy
+pydicom
+matplotlib

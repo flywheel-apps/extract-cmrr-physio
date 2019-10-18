@@ -51,3 +51,8 @@ COPY bin/extractCMRRPhysio_b81371d /usr/local/bin/extractCMRRPhysio
 # Ensure that the executable files are executable
 RUN chmod +x /usr/local/bin/extractCMRRPhysio
 
+COPY run.py ${FLYWHEEL}
+COPY utils ${FLYWHEEL}/utils
+# Configure entrypoint
+ENTRYPOINT ["/flywheel/v0/run.py"]
+

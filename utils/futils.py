@@ -58,7 +58,7 @@ def exists(file, log, ext=-1, is_expected=True, quit_on_error=True):
     return path_exists
 
 
-def set_environment(log):
+def set_environment(environ_json, log):
 
     # Let's ensure that we have our environment .json file and load it up
     exists(environ_json, log)
