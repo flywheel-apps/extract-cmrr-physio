@@ -101,6 +101,9 @@ def run_qc_on_physio_logs(context):
     return
 
 def log2dict(physio_log,context=''):
+    """
+    [add description here]
+    """
     physio_dict = {}
     header = []
     #context.log.debug('loading file')
@@ -219,8 +222,11 @@ def create_physio_dicts_from_logs(context):
 
 
 def dicts2bids(physio_dict, new_vol_ticks):
+    """
+    [add description here]
+    """
 
-    # Create an empty bids file.  this has the physio value and the scan trigger
+    # Create an empty BIDS file.  this has the physio value and the scan trigger
     phys_tics = physio_dict['ACQ_TIME_TICS']
     phys_valu = physio_dict['VALUE']
     bids_file = np.zeros((len(phys_valu), 2))
@@ -249,7 +255,7 @@ def dicts2bids(physio_dict, new_vol_ticks):
 def bids_o_matic_9000(raw_dicom, context):
     """
     This function takes physio.log data that's been convered to physio dict objects (stored in gear context custom_dict{}
-    This creates files from those dictionaries in bidds format.
+    This creates files from those dictionaries in BIDS format.
 
     :param raw_dicom: the raw dicom file (incase we need to go into it for naming purposes)
     :param context: the gear context
@@ -283,13 +289,13 @@ def bids_o_matic_9000(raw_dicom, context):
     else:
         # If not, we'll load the dicom and find something from there...
         # But first warn the user
-        context.log.warning('dicom metadata missing values.  Extracting "protocol name" from dicom for bids naming')
+        context.log.warning('dicom metadata missing values.  Extracting "protocol name" from dicom for BIDS naming')
         context.log.debug('loading {}'.format(raw_dicom))
         context.log.debug('dicom protocol name: {}'.format(dicom.ProtocolName))
 
         # If the protocol name is empty in the dicom, then this is all just messed up
         if not dicom.ProtocolName:
-            context.log.warning('Dicom header is missing values.  Unable to properly name BIDs physio file')
+            context.log.warning('Dicom header is missing values.  Unable to properly name BIDS physio file')
             context.log.warning('User will need to manually rename')
 
             # Let the user manually assign the name later
@@ -368,8 +374,8 @@ def main():
     #shutil.copy('config.json','/flywheel/v0/output/config.json')
     with flywheel.gear_context.GearContext() as gear_context:
 
-        #### Setup logging as per SSE best practices (Thanks Andy!)
-        fmt = '%(asctime)s %(levelname)8s %(name)-8s - %(message)s'
+        #### Setup logging as per SSE best practices
+        fmt = '%(asctime)s %(levelname)8s %(name)-8s %(funcName)s - %(message)s'
         logging.basicConfig(level=gear_context.config['gear-log-level'], format=fmt)
         gear_context.log = logging.getLogger('[flywheel/extract-cmrr-physio]')
         gear_context.log.info('log level is ' + gear_context.config['gear-log-level'])
@@ -435,7 +441,7 @@ def main():
         gear_context.log.debug('Successfully extracted physio')
 
         ###########################################################################
-        # Try to generate physio dictionaries from logs (used for QC and Bids)
+        # Try to generate physio dictionaries from logs (used for QC and BIDS)
         try:
             create_physio_dicts_from_logs(gear_context)
         except Exception as e:
@@ -467,11 +473,11 @@ def main():
                 bids_o_matic_9000(raw_dicom[0],gear_context)
             except Exception as e:
                 gear_context.log.fatal(e, )
-                gear_context.log.fatal('The CMRR conversion to bids failed', )
+                gear_context.log.fatal('The CMRR conversion to BIDS failed', )
 
                 os.sys.exit(1)
 
-            gear_context.log.debug('Successfully generated BIDs compliant files')
+            gear_context.log.debug('Successfully generated BIDS compliant files')
 
 if __name__ == '__main__':
     main()
