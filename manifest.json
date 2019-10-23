@@ -8,7 +8,7 @@
   "source": "https://github.com/flywheel-apps/extract-cmrr-physio",
   "license": "MIT",
   "flywheel": "0",
-  "version": "0.3.1-c1",
+  "version": "0.3.2-c1",
   "custom": {
     "docker-image": "flywheel/extract-cmrr-physio:0.2.0",
     "gear-builder": {
@@ -18,11 +18,11 @@
   },
   "inputs": {
     "DICOM_ARCHIVE": {
-      "description": "Zipped DICOM archive containing CMRR Physio data",
+      "description": "Zipped archive containing CMRR Physio data",
       "base": "file",
       "type": {
         "enum": [
-          "dicom"
+          "dicom", "archive"
         ]
       }
     }
