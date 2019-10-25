@@ -23,7 +23,7 @@ environ_json = '/tmp/gear_environ.json'
 tic_len = 2.5e-3  # seconds, length of one "tick"
 
 
-def physio_qc(physio_dict,new_vol_tics,output_dir):
+def physio_qc(physio_dict,new_vol_tics,output_path):
 
     """
     :param physio_dict: a dictionary object made from a physio.log file
@@ -85,7 +85,7 @@ def physio_qc(physio_dict,new_vol_tics,output_dir):
     pl.legend()
 
     # Save the figure and close
-    pl.savefig(op.join(output_dir, '{}_physio.png'.format(phys_name)), dpi=250)
+    pl.savefig(output_path, dpi=250)
     pl.close()
 
     pass
@@ -113,7 +113,8 @@ def run_qc_on_physio_logs(context):
 
         # Otherwise extract the dict and pass that to the qc function
         physio_dict = context.custom_dict['physio-dicts'][physio]
-        physio_qc(physio_dict, new_vol_tics,context.output_dir)
+        output_path = op.join(context.output_dir,'{0}_{1}.png'.format(context.custom_dict['matches'], physio_dict['LogDataType']))
+        physio_qc(physio_dict, new_vol_tics, output_path)
 
     return
 
@@ -233,6 +234,7 @@ def create_physio_dicts_from_logs(context):
         context.log.warning('No physio signals extracted')
         return
 
+
     # First we need to load the acquisition info file, and look through to see when the volumes were acquired
     # I believe we need this for the "trigger".  Typically, the scanner triggers at every volume.  I'm ASSUMING
     # That's what they're looking for, but it's not completely clear.
@@ -251,10 +253,49 @@ def create_physio_dicts_from_logs(context):
     # Store this as dictionary in our context custom dict.
     context.custom_dict['physio-dicts']['info'] = info_dict
 
+
+
+    # See if the "info" tag is filled and has the "Series Description" key:
+    matches = context.get_input('DICOM_ARCHIVE')['object']['info']
+
+    if 'SeriesDescription' in matches.keys() and matches['SeriesDescription']:
+        # Use that
+        matches = matches['SeriesDescription']
+    else:
+        # If not, we'll load the dicom and find something from there...
+        # But first warn the user
+        # Load the original dicom for naming info
+        raw_dicom = context.custom_dict['raw_dicom']
+        dicom = pydicom.read_file(raw_dicom)
+        context.log.warning('dicom metadata missing values.  Extracting "protocol name" from dicom for BIDS naming')
+        context.log.debug('loading {}'.format(raw_dicom))
+        context.log.debug('dicom protocol name: {}'.format(dicom.ProtocolName))
+
+        # If the protocol name is empty in the dicom, then this is all just messed up
+        if not dicom.ProtocolName:
+            context.log.warning('Dicom header is missing values.  Unable to properly name BIDS physio file')
+            context.log.warning('User will need to manually rename')
+
+            # Let the user manually assign the name later
+            matches = 'UnknownAcquisition'
+        else:
+            # Otherwise use what's provided in the dicom's Protocol name
+            context.log.debug('Settin matchis in the dicom protocol else loop')
+            matches = '{}'.format(dicom.ProtocolName)
+
+    context.custom_dict['matches'] = matches
+
+    context.log.info('matches value:')
+    context.log.info('matches: {}'.format(matches))
+
+    context.log.debug('matches type: {}'.format(type(matches)))
+
     for physio in all_physio:
 
         # If this in the info file, we don't do it.
         if physio == info:
+            new_file = op.join(context.output_dir,'{}_Info.log'.format(context.custom_dict['matches']))
+            shutil.move(physio, new_file)
             continue
 
         # Otherwise make it a dictionary:
@@ -265,6 +306,10 @@ def create_physio_dicts_from_logs(context):
 
         # Store this as a dictionary in our context custom dict
         context.custom_dict['physio-dicts'][physio_dict['LogDataType']] = physio_dict
+
+        # And rename the log file to something sane:
+        new_file = op.join(context.output_dir, '{0}_{1}.log'.format(context.custom_dict['matches'], physio_dict['LogDataType']))
+        shutil.move(physio, new_file)
 
     # The dictionaries are now stored in context.  We can return to the calling function
     return
@@ -369,38 +414,7 @@ def bids_o_matic_9000(raw_dicom, context):
     context.log.debug('extracting matches value')
     context.log.debug(print(context.get_input('DICOM_ARCHIVE')))
     context.log.debug(print(raw_dicom))
-    dicom = pydicom.read_file(raw_dicom)
 
-    # See if the "info" tag is filled and has the "Series Description" key:
-    matches = context.get_input('DICOM_ARCHIVE')['object']['info']
-    if 'SeriesDescription' in matches.keys() and matches['SeriesDescription']:
-
-        # Use that
-        matches = matches['SeriesDescription']
-
-    else:
-        # If not, we'll load the dicom and find something from there...
-        # But first warn the user
-        context.log.warning('dicom metadata missing values.  Extracting "protocol name" from dicom for BIDS naming')
-        context.log.debug('loading {}'.format(raw_dicom))
-        context.log.debug('dicom protocol name: {}'.format(dicom.ProtocolName))
-
-        # If the protocol name is empty in the dicom, then this is all just messed up
-        if not dicom.ProtocolName:
-            context.log.warning('Dicom header is missing values.  Unable to properly name BIDS physio file')
-            context.log.warning('User will need to manually rename')
-
-            # Let the user manually assign the name later
-            matches = 'UnknownAcquisition'
-        else:
-            # Otherwise use what's provided in the dicom's Protocol name
-            context.log.debug('Settin matchis in the dicom protocol else loop')
-            matches = '{}'.format(dicom.ProtocolName)
-
-    context.log.info('matches value:')
-    context.log.info('matches: {}'.format(matches))
-    context.log.debug('dicom protocol name: {}'.format(dicom.ProtocolName))
-    context.log.debug('matches type: {}'.format(type(matches)))
 
 
 
@@ -408,6 +422,7 @@ def bids_o_matic_9000(raw_dicom, context):
     if len(all_physio) == 0 or (len(all_physio) == 1 and len(info) == 1):
         context.log.warning('No physio signals extracted')
         return
+
 
     # Extract the new_vol_tics from the info dict
     info_dict = context.custom_dict['physio-dicts']['info']
@@ -430,16 +445,18 @@ def bids_o_matic_9000(raw_dicom, context):
         # If we can see that it's RESP or PULS, give it a nice name.
         # Otherwise we'll keep whatever's in the header.
         label = physio_dict['LogDataType']
-        if label == "RESP":
-            label = 'respiration'
-        elif label == "PULS":
-            label = 'cardiac'
+        # if label == "RESP":
+        #     label = 'respiration'
+        # elif label == "PULS":
+        #     label = 'cardiac'
 
         # Find the sample interval (in tics)
         json_dict['SamplingFrequency'] = 1.0 / float(physio_dict['SampleTime']) * tic_len
 
+        matches = context.custom_dict['matches']
+
         # Set the file name and save the file
-        physio_output = op.join(context.output_dir,'{}_recording-{}_physio.tsv'.format(matches,label))
+        physio_output = op.join(context.output_dir,'{}_recording-{}_physio.tsv'.format(matches, label))
         np.savetxt(physio_output, bids_file, fmt='%d', delimiter='\t')
 
         # Zip the file
@@ -546,6 +563,7 @@ def main():
 
 
         run_physio_command = ['/usr/local/bin/extractCMRRPhysio', raw_dicom[0], output_dir]
+        gear_context.custom_dict['raw_dicom'] = raw_dicom[0]
 
         ###########################################################################
         # Try to run the extract physio command:
@@ -581,7 +599,6 @@ def main():
             gear_context.log.warning(e, )
             gear_context.log.warning('Unable to run qc', )
 
-
         ###########################################################################
         # Try to run the bidsify command:
 
@@ -594,6 +611,7 @@ def main():
                 gear_context.log.fatal('The CMRR conversion to BIDS failed', )
 
                 os.sys.exit(1)
+           # bids_o_matic_9000(raw_dicom[0],gear_context)
 
             gear_context.log.debug('Successfully generated BIDS compliant files')
 
