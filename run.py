@@ -287,7 +287,7 @@ def create_physio_dicts_from_logs(context):
 
     context.log.info('matches value:')
     context.log.info('matches: {}'.format(matches))
-    context.log.debug('dicom protocol name: {}'.format(dicom.ProtocolName))
+
     context.log.debug('matches type: {}'.format(type(matches)))
 
     for physio in all_physio:
