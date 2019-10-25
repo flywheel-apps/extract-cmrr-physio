@@ -423,6 +423,7 @@ def bids_o_matic_9000(raw_dicom, context):
         context.log.warning('No physio signals extracted')
         return
 
+
     # Extract the new_vol_tics from the info dict
     info_dict = context.custom_dict['physio-dicts']['info']
     new_vol_ticks = info_dict['NEW_VOL_TICS']
