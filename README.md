@@ -21,16 +21,16 @@ While BIDS allows multiple physiological recordings to be placed in the same .ts
 
 BIDS also allows for a "scanner trigger" column in each recording's .tsv.gz file.  Though not explicitly stated, this logically is referring to the trigger that is sent by the scanner when a new volume acquisition begins.  This column is included with each physiological recording, synced to each individual sampling rate and time.
 
-This gear looks for metadata info on the acquisition name for the BIDS naming convention.  If this isn't availible, it will try to pull the "SeriesDescription" tag directly from the header.  Missing metadata in both of these locations will result in an output file named "UnknownAcquisition_<Measurement>.tsv.gz", and the user will need to manually set these file names.
-  
+This gear looks for metadata info on the acquisition name for the BIDS naming convention.  If this isn't available, it will try to pull the "SeriesDescription" tag directly from the header.  Missing metadata in both of these locations will result in an output file named "UnknownAcquisition_<Measurement>.tsv.gz", and the user will need to manually set these file names.
+
 
 ## Outputs:
 
 Every physiological dicom generates one "info.log" file, which has information about the acquisition time of the volumes in the scan.  This contains no physiological information, but is necessary to synchronize the physiological recordings with the scan.
 
-An additional "<Measure>.log" file is created for each physiological measurment stored in the dicom.
+An additional "<Measure>.log" file is created for each physiological measurement stored in the dicom.
 A validation .png image is generated for each "<Measure>.log" file.
-  
+
 If BIDS generation is selected, an additional ".tzv.gz" and ".json" file are created for each "<Measure>.log" file.
 The following directory structure represents output for a dicom with a single physiological measurement (respiration: "RESP").  Files surrounded by "[]" indicate files that are only generated for BIDS.  Files surrounded by "{}" indicate files that will be generated for each individual physiological measurement, if present:
 
@@ -42,5 +42,3 @@ Output_Directory
 |--->   { RESP.png                    }
 |---> [ { BIDS_name_for_RESP.tsv.gz   } ]
 |---> [ { BIDS_name_for_RESP.json     } ]
-
-
