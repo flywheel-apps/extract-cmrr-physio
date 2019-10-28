@@ -113,7 +113,7 @@ def run_qc_on_physio_logs(context):
 
         # Otherwise extract the dict and pass that to the qc function
         physio_dict = context.custom_dict['physio-dicts'][physio]
-        output_path = op.join(context.output_dir,'{0}_{1}.png'.format(context.custom_dict['matches'], physio_dict['LogDataType']))
+        output_path = op.join(context.output_dir,'{0}_{1}.qa.png'.format(context.custom_dict['matches'], physio_dict['LogDataType']))
         physio_qc(physio_dict, new_vol_tics, output_path)
 
     return
@@ -527,7 +527,7 @@ def main():
         zip_base = op.splitext(op.split(dicom)[-1])[0]
 
         # Now we need to unzip it:
-        uz_dir = op.join(flywheelv0, 'unzipped_dicom')
+        uz_dir = op.join('/tmp', 'unzipped_dicom')
         unzip_dicom_command = ['unzip','-o', dicom, '-d', uz_dir]
 
         ###########################################################################

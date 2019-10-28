@@ -5,15 +5,15 @@
   "maintainer": "Flywheel <support@flywheel.io>",
   "author": "E. Auerbach, CMRR, 2016",
   "url": "https://github.com/CMRR-C2P/MB",
-  "source": "https://github.com/flywheel-apps/extract-cmrr-physio",
+  "source": "https://github.com/flywheel-apps/extract-cmrr-physio/releases/tag/1.0.0",
   "license": "MIT",
   "flywheel": "0",
-  "version": "0.3.5-c1",
+  "version": "1.0.0",
   "custom": {
-    "docker-image": "flywheel/extract-cmrr-physio:0.2.0",
+    "docker-image": "flywheel/extract-cmrr-physio:1.0.0",
     "gear-builder": {
       "category": "converter",
-      "image": "flywheel/extract-cmrr-physio:0.2.0"
+      "image": "flywheel/extract-cmrr-physio:1.0.0"
     }
   },
   "inputs": {
@@ -22,7 +22,8 @@
       "base": "file",
       "type": {
         "enum": [
-          "dicom", "archive"
+          "dicom",
+          "archive"
         ]
       }
     }
@@ -30,8 +31,8 @@
   "config": {
     "Generate_Bids": {
       "description": "Generate BIDS compatible physio files",
-      "type" : "boolean",
-      "default" : false
+      "type": "boolean",
+      "default": false
     },
     "gear-log-level": {
       "default": "INFO",
@@ -45,11 +46,10 @@
       ]
     },
     "Dry-Run": {
-        "type":"boolean",
-        "default": false,
-        "description": "Log all commands, but do not execute."
+      "type": "boolean",
+      "default": false,
+      "description": "Log all commands, but do not execute."
     }
   },
-
   "command": "python /flywheel/v0/run.py"
 }

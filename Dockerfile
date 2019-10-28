@@ -53,9 +53,6 @@ RUN chmod +x /usr/local/bin/extractCMRRPhysio
 
 COPY run.py ${FLYWHEEL}
 COPY utils ${FLYWHEEL}/utils
+
 # Configure entrypoint
-RUN env -u HOSTNAME -u PWD | \
-  awk -F = '{ print "export " $1 "=\"" $2 "\"" }' > tmp/docker-env.sh
-
 ENTRYPOINT ["/flywheel/v0/run.py"]
-
