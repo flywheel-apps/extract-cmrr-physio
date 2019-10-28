@@ -13,7 +13,7 @@ Build context for a [Flywheel Gear](https://github.com/flywheel-io/gears/tree/ma
 
 ## Function:
 
-This gear uses the [CMRRExtractPhysio](https://github.com/CMRR-C2P/MB/) program to exctract physiological data from the dicom to separate .log files.  These log files are then used to generate visual plots of the physiological recording, with indicator lines marking the beginning and end of the scan, for validation purposes.
+This gear uses the [CMRRExtractPhysio](https://github.com/CMRR-C2P/MB/) program to extract physiological data from the dicom to separate .log files.  These log files are then used to generate visual plots of the physiological recording, with indicator lines marking the beginning and end of the scan, for validation purposes.
 
 If **Generate_Bids** is set to True, then two additional files are created for each physio .log file generated from CMRRExtractPhysio, following the [BIDS naming conventions](https://bids-specification.readthedocs.io/en/stable/04-modality-specific-files/06-physiological-and-other-continous-recordings.html).
 
