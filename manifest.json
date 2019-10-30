@@ -8,7 +8,7 @@
   "source": "https://github.com/flywheel-apps/extract-cmrr-physio/releases/tag/1.0.0",
   "license": "MIT",
   "flywheel": "0",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "custom": {
     "docker-image": "flywheel/extract-cmrr-physio:1.0.0",
     "gear-builder": {
@@ -33,6 +33,16 @@
       "description": "Generate BIDS compatible physio files",
       "type": "boolean",
       "default": false
+    },
+    "Generate_Raw": {
+      "description": "Keep the raw '.log' files created by the matlab dicom to physio program",
+      "type": "boolean",
+      "default": true
+    },
+    "Generate_QA": {
+      "description": "Generate QA plots of the physio measures for visual inspection",
+      "type": "boolean",
+      "default": true
     },
     "gear-log-level": {
       "default": "INFO",

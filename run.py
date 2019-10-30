@@ -13,7 +13,7 @@ import json
 import pydicom
 import shutil
 import matplotlib.pyplot as pl
-import pickle
+from pprint import pprint as pp
 
 ##-------- Standard Flywheel Gear Structure --------##
 flywheelv0 = "/flywheel/v0"
@@ -21,6 +21,103 @@ environ_json = '/tmp/gear_environ.json'
 
 ##--------  Gear Specific files/folders/values  ----##
 tic_len = 2.5e-3  # seconds, length of one "tick"
+
+def data_classifier(context,output_dir):
+
+    custom_physio_class = "Physio"
+    custom_ext_class = "Trigger"
+    custom_ecg_class = "ECG"
+    custom_info_class = "Info"
+    image_info = context.config['inputs']['DICOM_ARCHIVE']['object']['info']
+
+    # Check if physio is in the input object's information anywhere:
+    imtype = image_info['ImageType']
+    if not any([i=='PHYSIO' for i in imtype]):
+        context.log.warning('ImageType does not indicate physio, however by virtue of the gear running successfully, we will assume physio type')
+
+
+
+    # Attempt to recover classification info from the input file
+    (config, modality, classification) = ([], None, [])
+    try:
+        classification = context.config['inputs']['DICOM_ARCHIVE']['object']['classification']
+        classification['Custom'] =['Physio']
+    except:
+        context.log.info('  Cannot determine classification from config.json.')
+        classification = {'Custom':['Physio']}
+    try:
+        modality = config['inputs']['DICOM_ARCHIVE']['object']['modality']
+    except:
+        context.log.info('  Cannot determine modality from config.json.')
+        modality = 'MR'
+
+    files = []
+    for physio in context.custom_dict['physio-dicts']:
+
+        # Extract the dictionary
+        physio_dict = context.custom_dict['physio-dicts'][physio]
+        label = physio_dict['LogDataType']
+
+        if physio_dict['log_file']:
+
+            # First set the filetype:
+            f = physio_dict['log_file']
+
+            if f.endswith('.qa.png'):
+                ftype = 'qa'
+
+            elif f.endswith('.log'):
+                ftype = 'log'
+
+            elif f.endswith('.tsv.gz'):
+                ftype = 'tabular data'
+
+            elif f.endswith('.json'):
+                ftype = 'json'
+
+            else:
+                ftype = 'unknown'
+
+
+        # Now we'll determine the custom classification
+        if label == 'EXT':
+            classification['Custom'] = [custom_ext_class, custom_physio_class]
+            modality = 'MR'
+
+        elif label == 'ECG':
+            modality = 'ECG'
+            classification['Custom'] = [custom_ecg_class, custom_physio_class]
+
+        elif label == 'ACQUISITION_INFO':
+            classification['Custom'] = [custom_info_class, custom_physio_class]
+
+        else:
+            classification['Custom'] = [custom_physio_class]
+            modality = 'MR'
+
+        fdict = {'name': f,
+                 'type': ftype,
+                 'classification': classification,
+                 'info': image_info,
+                 'modality': modality}
+
+        files.append(fdict)
+
+        # Print info to log
+        context.log.info('file:\t{}\n'.format(f) +
+                         'type:\t{}\n'.format(ftype) +
+                         'classification:\t{}\n'.format(pp(classification)) +
+                         'modality:\t{}\n'.format(modality))
+
+    # Collate the metadata and write to file
+    metadata = {}
+    metadata['acquisition'] = {}
+    metadata['acquisition']['files'] = files
+    pp(metadata)
+    metadata_file = os.path.join(output_dir, '.metadata.json')
+
+    with open(metadata_file, 'w') as metafile:
+        json.dump(metadata, metafile)
 
 
 def physio_qc(physio_dict,new_vol_tics,output_path):
@@ -131,6 +228,11 @@ def log2dict(physio_log,context=''):
 
     physio_dict = {}
     header = []
+
+    # Set the log file to reference for later
+    physio_dict['log_file'] = physio_log
+    physio_dict['bids_file'] = ''
+
     # context.log.debug('loading file')
     f = open(physio_log, 'r')
     # context.log.debug('going through lines')
@@ -296,6 +398,9 @@ def create_physio_dicts_from_logs(context):
         if physio == info:
             new_file = op.join(context.output_dir,'{}_Info.log'.format(context.custom_dict['matches']))
             shutil.move(physio, new_file)
+
+            # Update the log file destination
+            context.custom_dict['physio-dicts']['info']['log_file'] = new_file
             continue
 
         # Otherwise make it a dictionary:
@@ -311,6 +416,8 @@ def create_physio_dicts_from_logs(context):
         new_file = op.join(context.output_dir, '{0}_{1}.log'.format(context.custom_dict['matches'], physio_dict['LogDataType']))
         shutil.move(physio, new_file)
 
+        # Update the log file destination
+        context.custom_dict['physio-dicts'][physio_dict['LogDataType']]['log_file'] = new_file
     # The dictionaries are now stored in context.  We can return to the calling function
     return
 
@@ -435,7 +542,7 @@ def bids_o_matic_9000(raw_dicom, context):
             continue
 
         # Extract the dictionary
-        physio_dict=context.custom_dict['physio-dicts'][physio]
+        physio_dict = context.custom_dict['physio-dicts'][physio]
 
         # Make a bids compatible array
         context.log.debug('running bids2dict')
@@ -462,6 +569,8 @@ def bids_o_matic_9000(raw_dicom, context):
         # Zip the file
         gzip_command = ['gzip','-f',physio_output]
         exec_command(context, gzip_command)
+        context.custom_dict['physio-dicts'][physio]['bids_file'] = physio_output
+
 
         # Now create and save the .json file
         if physio == 'EXT':
@@ -587,17 +696,29 @@ def main():
 
         gear_context.log.debug('Successfully generated physio dict')
 
+        ###########################################################################
+        # If the user doesn't want to keep these log files, delete them.
+        if not gear_context.config['Generate_Raw']:
+            gear_context.log.info('Removing .log files')
+            cmd = ['/bin/rm', output_dir,'*.log']
+            try:
+                exec_command(cmd)
+            except Exception as e:
+                gear_context.log.warning(e, )
+                gear_context.log.warning('Unable to remove *.log files', )
+
 
         ###########################################################################
         # Try to run physio QC command:
         # Make QC file:
 
-        gear_context.log.debug('Performing PhysioQC')
-        try:
-            run_qc_on_physio_logs(gear_context)
-        except Exception as e:
-            gear_context.log.warning(e, )
-            gear_context.log.warning('Unable to run qc', )
+        if gear_context.config['Generate_QA']:
+            gear_context.log.debug('Performing PhysioQC')
+            try:
+                run_qc_on_physio_logs(gear_context)
+            except Exception as e:
+                gear_context.log.warning(e, )
+                gear_context.log.warning('Unable to run qc', )
 
         ###########################################################################
         # Try to run the bidsify command:
@@ -614,6 +735,12 @@ def main():
            # bids_o_matic_9000(raw_dicom[0],gear_context)
 
             gear_context.log.debug('Successfully generated BIDS compliant files')
+
+        try:
+            data_classifier(gear_context, output_dir)
+        except Exception as e:
+            gear_context.log.warning(e, )
+            gear_context.log.warning('The file classification failed', )
 
 if __name__ == '__main__':
     main()
