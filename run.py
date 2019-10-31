@@ -181,6 +181,16 @@ def physio_qc(physio_dict,new_vol_tics,output_path):
             physio_vals.append(np.array(physio_dict[str(trigger)]))
             names.append(str(trigger))
 
+    elif phys_name == 'ECG':
+        channels = physio_dict['ECG_Chans']
+        physio_time = np.array(physio_dict['Flattened_Tics']).astype(float) * tic_len
+        physio_time = physio_time - acq_start
+        names = []
+        physio_vals = []
+        for chan in channels:
+            physio_vals.append(physio_dict[chan])
+            names.append(chan)
+
     else:
         physio_vals = [np.array(physio_dict['VALUE']).astype(int)]
         names = [phys_name]
