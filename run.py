@@ -14,6 +14,8 @@ import pydicom
 import shutil
 import matplotlib.pyplot as pl
 from pprint import pprint as pp
+import copy
+from collections import Counter
 
 ##-------- Standard Flywheel Gear Structure --------##
 flywheelv0 = "/flywheel/v0"
@@ -24,11 +26,22 @@ tic_len = 2.5e-3  # seconds, length of one "tick"
 
 def data_classifier(context,output_dir):
 
+    """
+    This function takes the gear context and the output directory and loads the "physio_dicts" from the context
+    custom dicts object.  Each physio dict has a key "['bids_file']" and "['log_file'].  if these files were created,
+    these keys point to that filename.  Loop through the log files and the bids files and set metadata based off
+    dictionary parameters and inhereted properties.
+    :param context: gear context
+    :param output_dir: the directory to save the metadata file in.
+    :return:
+    """
+
     custom_physio_class = "Physio"
     custom_ext_class = "Trigger"
     custom_ecg_class = "ECG"
     custom_info_class = "Info"
-    image_info = context.config['inputs']['DICOM_ARCHIVE']['object']['info']
+    inputs = context._get_invocation()['inputs']
+    image_info = inputs['DICOM_ARCHIVE']['object']['info']
 
     # Check if physio is in the input object's information anywhere:
     imtype = image_info['ImageType']
@@ -40,13 +53,13 @@ def data_classifier(context,output_dir):
     # Attempt to recover classification info from the input file
     (config, modality, classification) = ([], None, [])
     try:
-        classification = context.config['inputs']['DICOM_ARCHIVE']['object']['classification']
+        classification = inputs['DICOM_ARCHIVE']['object']['classification']
         classification['Custom'] =['Physio']
     except:
         context.log.info('  Cannot determine classification from config.json.')
         classification = {'Custom':['Physio']}
     try:
-        modality = config['inputs']['DICOM_ARCHIVE']['object']['modality']
+        modality = inputs['DICOM_ARCHIVE']['object']['modality']
     except:
         context.log.info('  Cannot determine modality from config.json.')
         modality = 'MR'
@@ -58,64 +71,79 @@ def data_classifier(context,output_dir):
         physio_dict = context.custom_dict['physio-dicts'][physio]
         label = physio_dict['LogDataType']
 
-        if physio_dict['log_file']:
-
-            # First set the filetype:
-            f = physio_dict['log_file']
-
-            if f.endswith('.qa.png'):
-                ftype = 'qa'
-
-            elif f.endswith('.log'):
-                ftype = 'log'
-
-            elif f.endswith('.tsv.gz'):
-                ftype = 'tabular data'
-
-            elif f.endswith('.json'):
-                ftype = 'json'
-
-            else:
-                ftype = 'unknown'
-
-
         # Now we'll determine the custom classification
         if label == 'EXT':
             classification['Custom'] = [custom_ext_class, custom_physio_class]
             modality = 'MR'
+            context.log.debug('setting custom info for trigger')
 
         elif label == 'ECG':
             modality = 'ECG'
             classification['Custom'] = [custom_ecg_class, custom_physio_class]
+            context.log.debug('setting custom info for ECG')
 
         elif label == 'ACQUISITION_INFO':
             classification['Custom'] = [custom_info_class, custom_physio_class]
+            context.log.debug('setting custom info for acquisition info')
 
         else:
             classification['Custom'] = [custom_physio_class]
             modality = 'MR'
+            context.log.debug('setting custom info for physio')
 
-        fdict = {'name': f,
-                 'type': ftype,
-                 'classification': classification,
-                 'info': image_info,
-                 'modality': modality}
 
-        files.append(fdict)
+        # This will loop through each physio_dict's log and bids keys
+        for file_key in ['log_file', 'bids_tsv', 'bids_json']:
 
-        # Print info to log
-        context.log.info('file:\t{}\n'.format(f) +
-                         'type:\t{}\n'.format(ftype) +
-                         'classification:\t{}\n'.format(pp(classification)) +
-                         'modality:\t{}\n'.format(modality))
+            # Label the log files
+            if physio_dict[file_key]:
+
+                # First set the filetype:
+                f = physio_dict[file_key]
+
+                if f.endswith('.qa.png'):
+                    ftype = 'qa'
+
+                elif f.endswith('.log'):
+                    ftype = 'log'
+
+                elif f.endswith('.tsv.gz'):
+                    ftype = 'tabular data'
+
+                elif f.endswith('.json'):
+                    ftype = 'json'
+
+                else:
+                    ftype = 'unknown'
+
+
+
+
+            fdict = {'name': f,
+                     'type': ftype,
+                     'classification': copy.deepcopy(classification),
+                     'info': image_info,
+                     'modality': modality}
+
+            files.append(fdict)
+
+            # Print info to log
+            context.log.info('file:\t{}\n'.format(f) +
+                             'type:\t{}\n'.format(ftype) +
+                             'classification:\t{}\n'.format(pp(classification)) +
+                             'modality:\t{}\n'.format(modality))
 
     # Collate the metadata and write to file
     metadata = {}
     metadata['acquisition'] = {}
     metadata['acquisition']['files'] = files
-    pp(metadata)
-    metadata_file = os.path.join(output_dir, '.metadata.json')
+    #pp(metadata)
 
+    metadata_file = os.path.join(output_dir, '.metadata.json')
+    with open(metadata_file, 'w') as metafile:
+        json.dump(metadata, metafile)
+
+    metadata_file = os.path.join(output_dir, 'metaout.json')
     with open(metadata_file, 'w') as metafile:
         json.dump(metadata, metafile)
 
@@ -301,13 +329,55 @@ def log2dict(physio_log,context=''):
 
     elif physio_dict['LogDataType'] == 'ECG':
 
-        # Hi future flywheel.  It's me, David, from the year 2019.  I honestly just don't have any example ECG data so
-        # I don't know what the log files look like.  Sorry.  If you encounter someone with this data, please work with
-        # them to develop this feature.  This code flows as follows: matlab code makes .log files, this function reads
-        # them and makes machine-friendly python dictionaries, and then those are converted to BIDS compliant data.
-        # I just wanted to tell you both good luck, we're all counting on you.
+        sample_step = int(physio_dict['SampleTime'])
+        physio_dict['CHANNEL'] = np.array(physio_dict['CHANNEL'])
+        physio_dict['VALUE'] = np.array(physio_dict['VALUE']).astype(int)
+        physio_dict['ACQ_TIME_TICS'] = np.array(physio_dict['ACQ_TIME_TICS']).astype(int)
+        min_tic = np.amin(physio_dict['ACQ_TIME_TICS'])
+        max_tic = np.amax(physio_dict['ACQ_TIME_TICS'])
+        ideal_time = np.arange(min_tic,max_tic,sample_step)
+        physio_dict['Flattened_Tics'] = ideal_time
 
-        raise Exception("ECG is unsupported.  Please see Flywheel, and they will work with you to develop this feature")
+
+
+
+
+        # We must do some curating here due to an glitch I noticed in my sample data.  See below
+        ############
+        ## In the test data i was given there was a weird glitch, where ECG1 recorded some values,
+        ## Then ECG2, with the same time tics, then ECG3 and ECG4.
+        ## Then ECG1 started again, this time with new time tics, supposedly.
+        ## However the first time tic of the second batch of ECG1 was the same as the last tic
+        ## from the first batch of ECG1, with different signal values.  What to do?
+        ## I'm choosing to drop the last measurement.  This pattern only happens for the first batch
+        ############
+
+        ecg_channels = np.unique(physio_dict['CHANNEL'])
+        physio_dict['ECG_Chans'] = ecg_channels
+        for ic, channel in enumerate(ecg_channels):
+
+            inds = np.where(physio_dict['CHANNEL'] == channel)
+            temp_chan_tics = physio_dict['ACQ_TIME_TICS'][inds]
+            temp_chan_vals = physio_dict['VALUE'][inds]
+
+            # Occasionally there is a duplicate sample for the same timepoint.  Take the one that
+            # Is lowest in the array
+            duplicates = [item for item, count in Counter(temp_chan_tics).items() if count > 1]
+            rminds = []
+            for dup in duplicates:
+                dup_inds = np.where(temp_chan_tics == dup)[0]
+                rminds.append(dup_inds[0])
+
+            temp_chan_tics = np.delete(temp_chan_tics, rminds)
+            temp_chan_vals = np.delete(temp_chan_vals, rminds)
+
+            physio_dict[channel] = np.interp(ideal_time, temp_chan_tics, temp_chan_vals,
+                                             left=temp_chan_vals[0], right=temp_chan_vals[-1])
+
+
+
+        # In case things were cut off mid-read, I guess we'll append zeros for now, rather than truncate data
+
 
 
     return physio_dict
@@ -441,6 +511,7 @@ def dicts2bids(physio_dict, new_vol_ticks):
     # expected_data_type = ['ACQUISITION_INFO', 'PULS', 'ECG', 'PULS', 'EXT']
     # Note: This is based off one set of sample data that is no means exhaustive.
     # It is likely that this code does not match all use-cases in other data.
+    vol = 0
 
     if physio_dict['LogDataType'] == 'EXT':
         # For debugging
@@ -451,7 +522,6 @@ def dicts2bids(physio_dict, new_vol_ticks):
         ext_triggers = physio_dict['Triggers']
         phys_valu = physio_dict['VALUE']
         bids_file = np.zeros((len(phys_valu), len(ext_triggers)+1))
-        vol = 0
 
         for trigger in ext_triggers:
 
@@ -471,11 +541,36 @@ def dicts2bids(physio_dict, new_vol_ticks):
                         # and increment the volume
                         vol += 1
 
+    elif physio_dict['LogDataType'] == 'ECG':
+
+        channels = np.unique(physio_dict['CHANNEL'])
+        n_channels = len(channels)
+        tics = physio_dict['Flattened_Tics']
+        n_tics = len(tics)
+        bids_file = np.zeros((n_tics,n_channels+1))
+        # loop through the flattened tics
+        for iv, tic in enumerate(tics):
+
+            # Loop through the (up to 5?) ECG channels
+            for ic, chan in enumerate(channels):
+                bids_file[iv, ic] = physio_dict[chan][iv]
+
+            # If we're not at the next to last volume
+            if vol < len(new_vol_ticks) - 1:
+
+                # Check if the current tic is greater than or equal to the next volume tic,
+                # Then this is as close as we can get to a scanner trigger, so set it as 1
+                next_vol_tick = new_vol_ticks[vol + 1]
+                if tic >= next_vol_tick:
+                    bids_file[iv, -1] = 1
+
+                    # and increment the volume
+                    vol += 1
+
     else:
 
         phys_valu = physio_dict['VALUE']
         bids_file = np.zeros((len(phys_valu), 2))
-        vol = 0
 
         for i, tic in enumerate(phys_tics):
 
@@ -569,23 +664,31 @@ def bids_o_matic_9000(raw_dicom, context):
         # Zip the file
         gzip_command = ['gzip','-f',physio_output]
         exec_command(context, gzip_command)
-        context.custom_dict['physio-dicts'][physio]['bids_file'] = physio_output
+        context.custom_dict['physio-dicts'][physio]['bids_tsv'] = physio_output+'.gz'
 
 
         # Now create and save the .json file
         if physio == 'EXT':
-            json_output = op.join(context.output_dir,'{}_recording-{}_physio.json'.format(matches,label))
+            json_output = op.join(context.output_dir, '{}_recording-{}_physio.json'.format(matches, label))
             json_dict['StartTime'] = (physio_dict['ACQ_TIME_TICS'][0] - info_dict['ACQ_START_TICS'][0]) * tic_len
             label = list(physio_dict['Triggers'])
             label.append('trigger')
             json_dict['Columns'] = label
 
         # May need to add a case here for ECG
+        elif physio == 'ECG':
+            json_output = op.join(context.output_dir, '{}_recording-{}_physio.json'.format(matches, label))
+            json_dict['StartTime'] = (physio_dict['ACQ_TIME_TICS'][0] - info_dict['ACQ_START_TICS'][0]) * tic_len
+            label = list(physio_dict['ECG_Chans'])
+            label.append('trigger')
+            json_dict['Columns'] = label
 
         else:
-            json_output = op.join(context.output_dir,'{}_recording-{}_physio.json'.format(matches,label))
+            json_output = op.join(context.output_dir, '{}_recording-{}_physio.json'.format(matches, label))
             json_dict['StartTime'] = (physio_dict['ACQ_TIME_TICS'][0] - info_dict['ACQ_START_TICS'][0]) * tic_len
-            json_dict['Columns'] = [label,'trigger']
+            json_dict['Columns'] = [label, 'trigger']
+
+        context.custom_dict['physio-dicts'][physio]['bids_json'] = json_output
 
 
         with open(json_output,'w') as json_file:
@@ -736,11 +839,11 @@ def main():
 
             gear_context.log.debug('Successfully generated BIDS compliant files')
 
-        try:
-            data_classifier(gear_context, output_dir)
-        except Exception as e:
-            gear_context.log.warning(e, )
-            gear_context.log.warning('The file classification failed', )
+        # try:
+        #     data_classifier(gear_context, output_dir)
+        # except Exception as e:
+        #     gear_context.log.warning(e, )
+        #     gear_context.log.warning('The file classification failed', )
 
 if __name__ == '__main__':
     main()
