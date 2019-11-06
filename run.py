@@ -2,6 +2,7 @@
 
 import flywheel
 from utils import futils as fu
+from utils import physio as ph
 import logging
 from utils.Common import exec_command
 import os.path as op
@@ -16,6 +17,7 @@ import matplotlib.pyplot as pl
 from pprint import pprint as pp
 import copy
 from collections import Counter
+import utils.physio as phys
 
 ##-------- Standard Flywheel Gear Structure --------##
 flywheelv0 = "/flywheel/v0"
@@ -148,7 +150,7 @@ def data_classifier(context,output_dir):
         json.dump(metadata, metafile)
 
 
-def physio_qc(physio_dict,new_vol_tics,output_path):
+def physio_qc(physio_dict, vol_time, output_path):
 
     """
     :param physio_dict: a dictionary object made from a physio.log file
@@ -161,7 +163,6 @@ def physio_qc(physio_dict,new_vol_tics,output_path):
 
     # First covert tics to seconds for the physio and new volume tic times
     physio_time = np.array(physio_dict['ACQ_TIME_TICS']).astype(float) * tic_len
-    vol_time = new_vol_tics.astype(float) * tic_len
 
     # Now we'll recenter the time so time t=0 is the beginning of the scan
     acq_start = vol_time[0]
@@ -207,12 +208,18 @@ def physio_qc(physio_dict,new_vol_tics,output_path):
 
     # Get the natural y axis limits and plot two vertical lines, indicating the start and stop of the scan
     yl, yh = ax.get_ylim()
-    ax.axvline(vol_time[0],yl,yh,color='g',linewidth=1.5,label='Volume Acquisition start')
+    print(yl)
+    print(yh)
+    ax.plot([vol_time[0],vol_time[0]],[yl,yh],color='g',linewidth=1.5,label='Volume Acquisition start')
+    print(phys_name)
+    print(vol_time[0])
 
     # Since our new_vol measurements are the time of the start of a volume acquisition, the true end of the scan
     # is one TR after the last acquisition start.  So, we can just calculate a "dt" and modify our end time
     dt = np.mean(np.diff(vol_time))
-    ax.axvline(vol_time[-1]+dt,yl,yh,color='r',linewidth=1.5,label='Volume Acquisition end')
+    ax.plot([vol_time[-1]+dt,vol_time[-1]+dt],[yl,yh],color='r',linewidth=1.5,label='Volume Acquisition end')
+    print(vol_time[-1])
+    print(dt)
 
     # Set the plot layout to tight and add a legend
     ax.set_title(phys_name)
@@ -238,7 +245,8 @@ def run_qc_on_physio_logs(context):
 
     # First extract the info, we need new_vol_tics
     info = context.custom_dict['physio-dicts']['info']
-    new_vol_tics = info['NEW_VOL_TICS']
+    new_vol_times = info['NEW_VOL_TIMES']
+
 
     for physio in context.custom_dict['physio-dicts']:
 
@@ -249,9 +257,10 @@ def run_qc_on_physio_logs(context):
         # Otherwise extract the dict and pass that to the qc function
         physio_dict = context.custom_dict['physio-dicts'][physio]
         output_path = op.join(context.output_dir,'{0}_{1}.qa.png'.format(context.custom_dict['matches'], physio_dict['LogDataType']))
-        physio_qc(physio_dict, new_vol_tics, output_path)
+        physio_qc(physio_dict, new_vol_times, output_path)
 
     return
+
 
 def log2dict(physio_log,context=''):
     """
@@ -393,7 +402,6 @@ def log2dict(physio_log,context=''):
     return physio_dict
 
 
-
 def create_physio_dicts_from_logs(context):
 
     """
@@ -431,6 +439,7 @@ def create_physio_dicts_from_logs(context):
     new_vol_inds = np.where(np.diff(info_dict['VOLUME']))[0] + 1
     new_vol_ticks = info_dict['ACQ_START_TICS'][new_vol_inds]
     info_dict['NEW_VOL_TICS'] = new_vol_ticks
+    info_dict['NEW_VOL_TIMES'] = new_vol_ticks * tic_len
 
     # Store this as dictionary in our context custom dict.
     context.custom_dict['physio-dicts']['info'] = info_dict
@@ -444,26 +453,8 @@ def create_physio_dicts_from_logs(context):
         # Use that
         matches = matches['SeriesDescription']
     else:
-        # If not, we'll load the dicom and find something from there...
-        # But first warn the user
-        # Load the original dicom for naming info
-        raw_dicom = context.custom_dict['raw_dicom']
-        dicom = pydicom.read_file(raw_dicom)
-        context.log.warning('dicom metadata missing values.  Extracting "protocol name" from dicom for BIDS naming')
-        context.log.debug('loading {}'.format(raw_dicom))
-        context.log.debug('dicom protocol name: {}'.format(dicom.ProtocolName))
+        matches = ''
 
-        # If the protocol name is empty in the dicom, then this is all just messed up
-        if not dicom.ProtocolName:
-            context.log.warning('Dicom header is missing values.  Unable to properly name BIDS physio file')
-            context.log.warning('User will need to manually rename')
-
-            # Let the user manually assign the name later
-            matches = 'UnknownAcquisition'
-        else:
-            # Otherwise use what's provided in the dicom's Protocol name
-            context.log.debug('Settin matchis in the dicom protocol else loop')
-            matches = '{}'.format(dicom.ProtocolName)
 
     context.custom_dict['matches'] = matches
 
@@ -713,10 +704,8 @@ def bids_o_matic_9000(raw_dicom, context):
 
 
 def main():
-    #shutil.copy('config.json','/flywheel/v0/output/config.json')
 
     supported_filetypes = [".dcm",".IMA"]
-
 
     with flywheel.gear_context.GearContext() as gear_context:
 
@@ -732,18 +721,24 @@ def main():
 
         gear_context.custom_dict['environ'] = environ_json
         # Create a 'dry run' flag for debugging
-        gear_context.custom_dict['dry-run'] = gear_context.config['Dry-Run']
 
         # Set up a field for physio dictionaries (used for bidsifying and qc)
         gear_context.custom_dict['physio-dicts'] = {}
 
         # Now let's set up our environment from the .json file stored in the docker image:
-        environ = fu.set_environment(environ_json, gear_context.log)
+        fu.set_environment(environ_json, gear_context.log)
         output_dir = gear_context.output_dir
 
         # Now we need to extract our input file, and check if it exists
         dicom = gear_context.get_input_path('DICOM_ARCHIVE')
         run_bids = gear_context.config['Generate_Bids']
+
+        matches = gear_context.get_input('DICOM_ARCHIVE')['object']['info']
+        if 'SeriesDescription' in matches.keys() and matches['SeriesDescription']:
+            # Use that
+            matches = matches['SeriesDescription']
+        else:
+            matches = ''
 
         fu.exists(dicom, gear_context.log, '.zip')
         zip_base = op.splitext(op.split(dicom)[-1])[0]
@@ -799,15 +794,67 @@ def main():
         gear_context.log.debug('Successfully extracted physio')
 
         ###########################################################################
-        # Try to generate physio dictionaries from logs (used for QC and BIDS)
-        try:
-            create_physio_dicts_from_logs(gear_context)
-        except Exception as e:
-            gear_context.log.fatal(e, )
-            gear_context.log.fatal('Unable to create Physio Dictionaries', )
-            os.sys.exit(1)
+        # Get the output.log files and make the physio objects
+        # Set the output dir
+        physio_output_dir = gear_context.output_dir
 
-        gear_context.log.debug('Successfully generated physio dict')
+        # First let's check the output.  We'll try to make this robust for any measurement:
+        gear_context.log.debug('Globbing Physio')
+        all_physio = glob.glob(op.join(physio_output_dir, '*.log'))
+        info_file = glob.glob(op.join(physio_output_dir, '*Info.log'))[0]
+
+        # Handle errors and warnings about missing physio data
+        if len(all_physio) == 0 or (len(all_physio) == 1 and len(info) == 1):
+            gear_context.log.warning('No physio signals extracted')
+            return
+
+        # First we need to load the acquisition info file, and look through to see when the volumes were acquired
+        # I believe we need this for the "trigger".  Typically, the scanner triggers at every volume.  I'm ASSUMING
+        # That's what they're looking for, but it's not completely clear.
+        info = phys.phys_info(info_file)
+        physio_objects = []
+
+        for phys_file in all_physio:
+
+            # If it's the info file, we just made that object, so skip it.
+            if phys_file == info_file:
+                continue
+            physio_objects.append(phys.physio(phys_file))
+
+        for physio in physio_objects:
+            try:
+                # Set the info object
+                physio.set_info(info)
+                physio.parent_dicom = gear_context.get_input_path('DICOM_ARCHIVE')
+
+                # Set some values that in the future will be set by the config file
+                physio.fill_val = 0
+                physio.interp = 'linear'
+                physio.handle_missing_data = 'uniform'
+
+                # Mandatory Processing step:
+                physio.remove_duplicate_tics()
+
+                # Based on the handle_missing_data, process the data
+                process = gear_context.config['process data']
+                if gear_context.config['process data']:
+                    physio.create_new_tic_array()
+                    physio.interp_values_to_newtics()
+                    physio.triggers_2_timeseries()
+
+
+                #Run QA:
+                physio.run_full_qc()
+
+                # If BIDS is desired:
+                if run_bids:
+                    physio.bids_o_matic_9000(processed=process, matches=matches, zip_output=False)
+
+            except Exception as e:
+                gear_context.log.fatal(e)
+                sys.exit(1)
+
+
 
         ###########################################################################
         # If the user doesn't want to keep these log files, delete them.
@@ -821,45 +868,7 @@ def main():
                 gear_context.log.warning('Unable to remove *.log files', )
 
 
-        ###########################################################################
-        # Try to run physio QC command:
-        # Make QC file:
-
-        if gear_context.config['Generate_QA']:
-            gear_context.log.debug('Performing PhysioQC')
-            try:
-                run_qc_on_physio_logs(gear_context)
-            except Exception as e:
-                gear_context.log.warning(e, )
-                gear_context.log.warning('Unable to run qc', )
-
-        ###########################################################################
-        # Try to run the bidsify command:
-
-        if run_bids:
-
-            try:
-                bids_o_matic_9000(raw_dicom[0],gear_context)
-            except Exception as e:
-                gear_context.log.fatal(e, )
-                gear_context.log.fatal('The CMRR conversion to BIDS failed', )
-
-                os.sys.exit(1)
-           # bids_o_matic_9000(raw_dicom[0],gear_context)
-
-            gear_context.log.debug('Successfully generated BIDS compliant files')
-
-        # try:
-        #     data_classifier(gear_context, output_dir)
-        # except Exception as e:
-        #     gear_context.log.warning(e, )
-        #     gear_context.log.warning('The file classification failed', )
-
 if __name__ == '__main__':
     main()
 
 
-# TODO
-# QA options
-# Add "Physio" in "Custom" fields to classifier
-#
