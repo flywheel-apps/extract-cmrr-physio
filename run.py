@@ -149,61 +149,45 @@ def data_classifier(context,output_dir):
         json.dump(metadata, metafile)
 
 
+def setup_logger(gear_context):
+    """
+    This function simply sets up the gear logger to Flywheel SSE best practices
+    :param gear_context: the gear context
+    :return: none
+    """
+    #### Setup logging as per SSE best practices
+    fmt = '%(asctime)s %(levelname)8s %(name)-8s %(funcName)s - %(message)s'
+    logging.basicConfig(level=gear_context.config['gear-log-level'], format=fmt)
+    gear_context.log = logging.getLogger('[flywheel/extract-cmrr-physio]')
+    gear_context.log.info('log level is ' + gear_context.config['gear-log-level'])
+    gear_context.log_config()  # not configuring the log but logging the config
 
 
+def extract_zipped_dicom(gear_context, dicom):
+    """
+    This function extracts a zipped dicom archive and check for the correct number of resulting files for a physio
+    DICOM archive.  Errors are thrown if there's more or less than 1 dicom file extracted, or if the unzipped file
+    is not of the supported type.
+    :param gear_context: the gear context
+    :param dicom: the zipped dicom file archive
+    :return: the raw, unzipped file path
+    """
 
-def main():
-
-    supported_filetypes = [".dcm",".IMA"]
-
-    with flywheel.gear_context.GearContext() as gear_context:
-
-        #### Setup logging as per SSE best practices
-        fmt = '%(asctime)s %(levelname)8s %(name)-8s %(funcName)s - %(message)s'
-        logging.basicConfig(level=gear_context.config['gear-log-level'], format=fmt)
-        gear_context.log = logging.getLogger('[flywheel/extract-cmrr-physio]')
-        gear_context.log.info('log level is ' + gear_context.config['gear-log-level'])
-        gear_context.log_config()  # not configuring the log but logging the config
-
-        # Set up Custom Dicionary to host user variables
-        gear_context.custom_dict = {}
-        gear_context.custom_dict['environ'] = environ_json
-
-        # Create a 'dry run' flag for debugging
-        gear_context.custom_dict['dry-run'] = gear_context.config['Dry-Run']
-
-        # Set up a field for physio dictionaries (used for bidsifying and qc)
-        gear_context.custom_dict['physio-dicts'] = {}
-
-        # Now let's set up our environment from the .json file stored in the docker image:
-        fu.set_environment(environ_json, gear_context.log)
-        output_dir = gear_context.output_dir
-
-        # Now we need to extract our input file, and check if it exists
-        dicom = gear_context.get_input_path('DICOM_ARCHIVE')
-        run_bids = gear_context.config['Generate_Bids']
-
-        matches = gear_context.get_input('DICOM_ARCHIVE')['object']['info']
-        if 'SeriesDescription' in matches.keys() and matches['SeriesDescription']:
-            # Use that
-            matches = matches['SeriesDescription']
-        else:
-            matches = ''
+    try:
+        supported_filetypes = [".dcm", ".IMA"]
 
         fu.exists(dicom, gear_context.log, '.zip')
         zip_base = op.splitext(op.split(dicom)[-1])[0]
 
         # Now we need to unzip it:
         uz_dir = op.join('/tmp', 'unzipped_dicom')
-        unzip_dicom_command = ['unzip','-o', dicom, '-d', uz_dir]
+        unzip_dicom_command = ['unzip', '-o', dicom, '-d', uz_dir]
         ###########################################################################
         # Try to run the unzip command:
         try:
             exec_command(gear_context, unzip_dicom_command)
         except Exception as e:
-            gear_context.log.fatal(e, )
-            gear_context.log.fatal('The CMRR physio extraction Failed.', )
-            os.sys.exit(1)
+            raise e
 
         # Now we locate the raw unzipped dicom
         for ft in supported_filetypes:
@@ -219,65 +203,103 @@ def main():
             print(raw_dicom)
             gear_context.log.fatal(
                 'Dicom structure contains too many dicoms, unrecognized CMRR physio format for this gear')
-
-            sys.exit(1)
+            raise Exception('Too many dicoms in Zip file archive')
 
         # IF we didn't find any, exit
         elif len(raw_dicom) < 1:
             gear_context.log.fatal('Dicom structure unzipped zero file of supported file type.')
-            sys.exit(1)
+            raise Exception('No files found in unzipped archive')
 
+    except Exception as e:
+        raise e
 
-        run_physio_command = ['/usr/local/bin/extractCMRRPhysio', raw_dicom[0], output_dir]
-        gear_context.custom_dict['raw_dicom'] = raw_dicom[0]
-        exec_command(gear_context, run_physio_command)
+    return raw_dicom
 
-        ###########################################################################
-        # Try to run the extract physio command:
+def main():
+
+    with flywheel.gear_context.GearContext() as gear_context:
+
         try:
+
+            ######################################################
+            ####   Runtime Setup
+            ######################################################
+            # Setup gear logging
+            setup_logger(gear_context)
+
+            # Extract some basic values and set up gear environment
+            output_dir = gear_context.output_dir
+            fu.set_environment(environ_json, gear_context.log)
+
+            # Set up Custom Dicionary to host user variables
+            gear_context.custom_dict = {}
+            gear_context.custom_dict['environ'] = environ_json
+
+            # Create a 'dry run' flag for debugging
+            gear_context.custom_dict['dry-run'] = gear_context.config['Dry-Run']
+
+            # Set up a field for physio dictionaries (used for bidsifying and qc)
+            gear_context.custom_dict['physio-dicts'] = {}
+
+            # Extract matches keyword for BIDS data format
+            matches = gear_context.get_input('DICOM_ARCHIVE')['object']['info']
+            if 'SeriesDescription' in matches.keys() and matches['SeriesDescription']:
+                # Use that
+                matches = matches['SeriesDescription']
+            else:
+                matches = ''
+
+            ######################################################
+            ####   Pre-processing/file setup/extraction
+            ######################################################
+            # Now we need to unzip our input file, and check if it exists
+            dicom = gear_context.get_input_path('DICOM_ARCHIVE')
+            raw_dicom = extract_zipped_dicom(gear_context, dicom)
+
+            #########################################
+            # Try to run the extract physio command:
+            run_physio_command = ['/usr/local/bin/extractCMRRPhysio', raw_dicom[0], output_dir]
+            gear_context.custom_dict['raw_dicom'] = raw_dicom[0]
             exec_command(gear_context, run_physio_command)
-        except Exception as e:
-            gear_context.log.fatal(e, )
-            gear_context.log.fatal('The CMRR physio extraction Failed.', )
-            os.sys.exit(1)
 
-        gear_context.log.debug('Successfully extracted physio')
+            gear_context.log.debug('Successfully extracted physio')
 
-        ###########################################################################
-        # Get the output.log files and make the physio objects
-        # Set the output dir
-        physio_output_dir = gear_context.output_dir
+            #########################################
+            # Get the output.log files and make the physio objects
+            # Set the output dir
+            physio_output_dir = gear_context.output_dir
 
-        # First let's check the output.  We'll try to make this robust for any measurement:
-        gear_context.log.debug('Globbing Physio')
-        all_physio = glob.glob(op.join(physio_output_dir, '*.log'))
-        info_file = glob.glob(op.join(physio_output_dir, '*Info.log'))
-        if not info_file:
-            gear_context.log.warning('No Info file found.  Failed Extraction?')
-            return
-        else:
-            info_file = info_file[0]
+            # First let's check the output.  We'll try to make this robust for any measurement:
+            gear_context.log.debug('Globbing Physio')
+            all_physio = glob.glob(op.join(physio_output_dir, '*.log'))
+            info_file = glob.glob(op.join(physio_output_dir, '*Info.log'))
 
-        # Handle errors and warnings about missing physio data
-        if len(all_physio) == 0 or len(all_physio) == 1:
-            gear_context.log.warning('No physio signals extracted')
-            return
+            if not info_file:
+                gear_context.log.warning('No Info file found.  Failed Extraction?')
+                return
+            else:
+                info_file = info_file[0]
 
-        # First we need to load the acquisition info file, and look through to see when the volumes were acquired
-        # I believe we need this for the "trigger".  Typically, the scanner triggers at every volume.  I'm ASSUMING
-        # That's what they're looking for, but it's not completely clear.
-        info = phys.phys_info(info_file)
-        physio_objects = []
+            # Handle errors and warnings about missing physio data
+            if len(all_physio) == 0 or len(all_physio) == 1:
+                gear_context.log.warning('No physio signals extracted')
+                return
 
-        for phys_file in all_physio:
+            ######################################################
+            ####   Main Physio Processing/BIDS creation
+            ######################################################
+            info = phys.phys_info(info_file)
+            physio_objects = []
 
-            # If it's the info file, we just made that object, so skip it.
-            if phys_file == info_file:
-                continue
-            physio_objects.append(phys.physio(phys_file))
+            for phys_file in all_physio:
 
-        for physio in physio_objects:
-            try:
+                # If it's the info file, we just made that object, so skip it.
+                if phys_file == info_file:
+                    continue
+                physio_objects.append(phys.physio(phys_file))
+
+            for physio in physio_objects:
+
                 # Set the info object
                 physio.set_info(info)
                 physio.parent_dicom = raw_dicom[0]
@@ -297,32 +319,27 @@ def main():
                     physio.interp_values_to_newtics()
                     physio.triggers_2_timeseries()
 
-
                 #Run QA:
                 physio.run_full_qc()
 
                 # If BIDS is desired:
-                if run_bids:
+                if gear_context.config['Generate_Bids']:
                     physio.bids_o_matic_9000(processed=process, matches=matches, zip_output=False)
 
-            except Exception as e:
-                traceback.print_exc()
-                gear_context.log.fatal(e)
-                sys.exit(1)
 
+            ###########################################################################
+            # If the user doesn't want to keep these log files, delete them.
+            if not gear_context.config['Generate_Raw']:
+                gear_context.log.info('Removing .log files')
+                cmd = ['/bin/rm', output_dir,'*.log']
 
-
-        ###########################################################################
-        # If the user doesn't want to keep these log files, delete them.
-        if not gear_context.config['Generate_Raw']:
-            gear_context.log.info('Removing .log files')
-            cmd = ['/bin/rm', output_dir,'*.log']
-            try:
                 exec_command(cmd)
-            except Exception as e:
-                gear_context.log.warning(e, )
-                gear_context.log.warning('Unable to remove *.log files', )
 
+        # Catch any exceptions
+        except Exception as e:
+            gear_context.log.fatal(traceback.print_exc())
+            gear_context.log.fatal(e)
+            sys.exit(1)
 
 if __name__ == '__main__':
     main()

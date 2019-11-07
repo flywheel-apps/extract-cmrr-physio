@@ -9,6 +9,11 @@ import json
 
 
 class physio:
+    """
+    physio is a class that stores a raw siemens physio recording as a dictionary, and has various build-in functions
+    that call on the toolkit "physiotools" to perform various necessary preprocessing steps for bidsification and
+    general data management.
+    """
     def __init__(self ,logfile):
 
         self.parent_dicom = ''
@@ -57,6 +62,11 @@ class physio:
 
 
     def load_physio(self):
+        """
+        Loads in the physio file specified by self.logfile and generates a physio dict, form which all processing is
+        based off of
+        :return:
+        """
         try:
             self.physio_dict = pt.log2dict(self.logfile)
             self.sample_tics = int(self.physio_dict['SampleTime'])
@@ -76,7 +86,12 @@ class physio:
 
 
     def set_info(self,phys_obj):
-
+        """
+        Sets the info.log file (which is also a physio object) so this object can reference it and obtain things like
+        when each volume was acquired in tic times.
+        :param phys_obj: the phy_obj (a special object just for the info.log file from CMRR extraction)
+        :return:
+        """
         try:
             if isinstance(phys_obj, phys_info):
                 self.info = phys_obj
@@ -85,15 +100,24 @@ class physio:
         except Exception as e:
             raise Exception("Error setting info") from e
 
-    def do_raw_qa(self):
 
+    def do_raw_qa(self):
+        """
+        Performs QA measures on the raw data (directly from the physio dict)
+        :return:
+        """
         try:
             for chan in self.channels:
                 self.raw_qa[chan] = pt.eval_sampling_quality(self.raw_tics[chan], self.raw_values[chan], self.sample_tics)
         except Exception as e:
             raise Exception("Error doing raw QA for {}".format(self.type)) from e
 
+
     def do_proc_qa(self):
+        """
+        performs QA measures on the processed data
+        :return:
+        """
 
         try:
             for chan in self.channels:
@@ -104,7 +128,13 @@ class physio:
 
 
     def remove_duplicate_tics(self):
-
+        """
+        This searches through the tic times of each channels acquisitions and removes any duplicates.  Duplicates
+        rarely arise, but they pose a problem.  If a duplicate tic time is found, the sample that is last in the array
+        will be used.  This step is mandatory for all physio data, even if no processing is desired.
+        calls physiotools.remove_duplicate_tics
+        :return:
+        """
         try:
             for chan in self.channels:
                 tics = self.raw_tics[chan]
@@ -116,7 +146,14 @@ class physio:
         except Exception as e:
             raise Exception("Error removing duplicate values for {}".format(self.type)) from e
 
+
     def create_new_tic_array(self):
+        """
+        This generates a new tic array, depending on the "tic_fill_strategy" value, set by the user.  If set to "none",
+        this function can be called and will return the same array value, which will then be stored in "acq_tics"
+        calls pythontools.create_new_tics
+        :return:
+        """
 
         #print(self.tic_fill_strategy)
 
@@ -141,7 +178,14 @@ class physio:
         except Exception as e:
             raise Exception("Error creating new tic times {}".format(self.type)) from e
 
+
     def interp_values_to_newtics(self):
+        """
+        This function takes the raw channel values and the new custom tics array (from create_new_tic_array)
+        and interpolates the raw data to that new tic timeseries.  Interpolation method is based on the value
+        "interp_method",
+        :return:
+        """
 
         try:
             if self.interp_method == 'fill':
@@ -167,6 +211,7 @@ class physio:
         except Exception as e:
             raise Exception("Error interpolating values for {}".format(self.type)) from e
 
+
     def triggers_2_timeseries(self):
 
         try:
@@ -178,6 +223,7 @@ class physio:
                     self.sig_values[chan][sig] = pt.sig_2_timeseries(self.acq_tics[chan], self.raw_tics[sig])
         except Exception as e:
             raise Exception("Error converting triggers to timeseries for {}".format(self.type)) from e
+
 
     def process_raw(self):
         """
@@ -202,6 +248,7 @@ class physio:
 
         except Exception:
             raise
+
 
     def minimal_process_raw(self):
         """
@@ -237,7 +284,15 @@ class physio:
         except Exception as e:
             raise Exception("Error performing minimum processing for {}".format(self.type)) from e
 
+
     def one_step_process_raw(self):
+        """
+        This function performs all of the preprocessing necessary (remove_duplicate_tics(), create_new_tic_array(),
+         interp_values_to_newtics(), triggers_2_timeseries()) within physiotools in an efficient loop.
+         But sometimes efficient loops are harder to understand, which is why there are other, less efficient,
+         but more clear functions that do the same thing
+        :return:
+        """
 
         try:
             if self.interp_method == 'fill':
@@ -265,8 +320,13 @@ class physio:
         except Exception as e:
             raise Exception("Error performing one step process for {}".format(self.type)) from e
 
-    def run_full_qc(self):
 
+    def run_full_qc(self):
+        """
+        This function runs the full qc on both the raw and processed data, compares them, and generates a qa plot of
+        the channels and trigger signals.
+        :return:
+        """
         try:
             if self.proc_data == False:
                 self.minimal_process_raw()
@@ -298,15 +358,18 @@ class physio:
             raise Exception("Error running full qc for {}".format(self.type)) from e
 
 
-
     def plot_physio_qc(self,qa_text='',output_path=''):
-
+        """
+        This function plots the physio QC (a plot of all channels, and all trigger signals).
+        with a text string that can be anything, which is printed on the left side of the plot
+        :param qa_text:
+        :param output_path:
+        :return:
+        """
         try:
             if not output_path:
                 output_dir = os.path.split(self.logfile)[0]
                 output_path = os.path.join(output_dir,'physio_qa_{}.qa.png'.format(self.type))
-
-
 
             vol_time = self.info.NEW_VOL_TIMES
             acq_start = vol_time[0]
@@ -371,17 +434,24 @@ class physio:
 
 
     def plot_raw(self):
+        """
+        Just plot the raw data, quick and dirty
+        :return:
+        """
 
         pl.figure()
         for chan in self.channels:
             pl.plot(self.raw_tics[chan],self.raw_values[chan])
 
+
     def plot_proc(self):
+        """
+        plot the processed data, quick and dirty
+        :return:
+        """
         pl.figure()
         for chan in self.channels:
             pl.plot(self.acq_tics[chan],self.chan_values[chan])
-
-
 
 
     def bids_o_matic_9000(self, processed=True, matches='', zip_output=False):
@@ -488,6 +558,9 @@ class physio:
 
 
 
+
+
+
 class phys_info:
     def __init__(self, logfile):
         self.info_dict = {}
@@ -499,6 +572,7 @@ class phys_info:
         self.info_dict = pt.log2dict(logfile)
 
         self.NEW_VOL_TICS, self.NEW_VOL_TIMES = self.get_volume_start_tics()
+
 
     def get_volume_start_tics(self):
         try:
@@ -543,32 +617,4 @@ class phys_info:
 
 
 
-
-
-
-
-
-# ext = '/Users/davidparker/Documents/Flywheel/SSE/MyWork/Gears/BIDs_Physio/TestPhysioData/cmrr_mbep2d_Physio_PhysioLog/Physio_20190515_143710_a231775f-6990-4793-881e-3d55bb283f9b_EXT.log'
-# ext_info='/Users/davidparker/Documents/Flywheel/SSE/MyWork/Gears/BIDs_Physio/TestPhysioData/cmrr_mbep2d_Physio_PhysioLog/Physio_20190515_143710_a231775f-6990-4793-881e-3d55bb283f9b_Info.log'
-#
-#
-# info = phys_info('/Users/davidparker/Documents/Flywheel/SSE/MyWork/Gears/BIDs_Physio/extract-cmrr-physio/output/func-bold_task-lokicat_run-01_Info.log')
-# puls = '/Users/davidparker/Documents/Flywheel/SSE/MyWork/Gears/BIDs_Physio/extract-cmrr-physio/output/func-bold_task-lokicat_run-01_PULS.log'
-# resp = '/Users/davidparker/Documents/Flywheel/SSE/MyWork/Gears/BIDs_Physio/extract-cmrr-physio/output/func-bold_task-lokicat_run-01_RESP.log'
-# ecg = '/Users/davidparker/Documents/Flywheel/SSE/MyWork/Gears/BIDs_Physio/extract-cmrr-physio/output/func-bold_task-lokicat_run-01_ECG.log'
-#
-#
-# qnlresp ='/Users/davidparker/Documents/Flywheel/SSE/MyWork/Gears/BIDs_Physio/TestPhysioData/Physio_20180730_190934_83cd52f7-d767-4959-b441-210aeab19fe3_RESP.log'
-# test = physio(resp)
-#
-#
-#
-# test.set_info(info)
-# test.fill_val = 0
-# test.interp = 'fill'
-# test.tic_fill_strategy = 'upsample'
-# test.process_raw()
-# test.run_full_qc()
-# test.bids_o_matic_9000(processed=True, matches='my_match', zip_output=False)
-#
 

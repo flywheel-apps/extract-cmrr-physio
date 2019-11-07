@@ -5,8 +5,6 @@ from collections import Counter
 from scipy import interpolate
 
 
-
-
 def create_new_tics(tics, rate, mintic='', maxtic='',option='preserve'):
     """
     This function creates new tics in an attempt to account for missing data using the following settings:
@@ -262,6 +260,16 @@ def log2dict(physio_log):
 
 
 def process_multichan(physio_dict, fill='linear', tic_option='fill'):
+    """
+    this does the full processing pipeline on each channel and signal.
+    (remove_duplicate_tics(), create_new_tic_array(),
+         interp_values_to_newtics(), triggers_2_timeseries())
+
+    :param physio_dict:
+    :param fill:
+    :param tic_option:
+    :return:
+    """
 
     rate = int(physio_dict['SampleTime'])
     proc_data = {}
@@ -283,7 +291,6 @@ def process_multichan(physio_dict, fill='linear', tic_option='fill'):
     return proc_tics, proc_data
 
 
-
 def sig_2_timeseries(ts_tics, sig_tics):
     """
     This function takes a signal channel (which is an array of index times, indicating at which points a certain trigger
@@ -303,7 +310,6 @@ def sig_2_timeseries(ts_tics, sig_tics):
         sig_ts[ind] = 1
 
     return sig_ts
-
 
 
 def remove_duplicate_tics(tics, values):
@@ -411,7 +417,17 @@ def resample_data(tics, values, new_tics, fill='interp'):
 
     return new_values
 
+
 def dicts2bids(chan_values, sig_values, new_vol_array):
+
+    """
+    This function takes the processed channel values and signal values from a physio object, and prepares a BIDS file.
+
+    :param chan_values:
+    :param sig_values:
+    :param new_vol_array:
+    :return:
+    """
 
     # Initialize BIDS file as matrix of zeros
     chan = list(chan_values.keys())[0]
