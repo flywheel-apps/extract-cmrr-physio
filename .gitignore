@@ -2,3 +2,5 @@
 *.iml
 *.xml
 utils/__pycache__
+/utils/cfmm2tar/
+/utils/extract_cmrr_physio.py
