@@ -1,12 +1,10 @@
 
 import numpy as np
-import sys
-import physiotools as pt
+import utils.physiotools as pt
 import matplotlib.pyplot as pl
 import os
 import pydicom
 import os.path as op
-from Common import exec_command
 import json
 
 

@@ -397,7 +397,7 @@ def resample_data(tics, values, new_tics, fill='interp'):
         old_tic_n = 0
         old_tic = tics[old_tic_n]
         for it, new_tick in enumerate(new_tics):
-            if old_tic == new_tic:
+            if old_tic == new_tick:
                 new_values[it] = values[old_tic_n]
                 old_tic_n += 1
 

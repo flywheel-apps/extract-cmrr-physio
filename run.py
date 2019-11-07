@@ -16,7 +16,6 @@ import shutil
 import matplotlib.pyplot as pl
 from pprint import pprint as pp
 import copy
-from collections import Counter
 import utils.physio as phys
 
 ##-------- Standard Flywheel Gear Structure --------##
@@ -231,6 +230,7 @@ def main():
 
         run_physio_command = ['/usr/local/bin/extractCMRRPhysio', raw_dicom[0], output_dir]
         gear_context.custom_dict['raw_dicom'] = raw_dicom[0]
+        exec_command(gear_context, run_physio_command)
 
         ###########################################################################
         # Try to run the extract physio command:
@@ -277,17 +277,17 @@ def main():
                 physio.set_info(info)
                 physio.parent_dicom = gear_context.get_input_path('DICOM_ARCHIVE')
 
-                # Set some values that in the future will be set by the config file
-                physio.fill_val = 0
-                physio.interp = 'linear'
-                physio.handle_missing_data = 'uniform'
+                # Set some values that will be set by the config file
+                physio.fill_val = gear_context.config['Fill_Value']
+                physio.interp = gear_context.config['INterpolation_Method']
+                physio.tic_fill_strategy = gear_context.config["Missing_Data"]
 
                 # Mandatory Processing step:
                 physio.remove_duplicate_tics()
 
                 # Based on the handle_missing_data, process the data
-                process = gear_context.config['process data']
-                if gear_context.config['process data']:
+                process = gear_context.config['Process_Data']
+                if process:
                     physio.create_new_tic_array()
                     physio.interp_values_to_newtics()
                     physio.triggers_2_timeseries()

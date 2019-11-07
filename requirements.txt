@@ -2,3 +2,4 @@ flywheel-sdk
 numpy
 pydicom
 matplotlib
+scipy
