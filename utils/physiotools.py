@@ -411,4 +411,30 @@ def resample_data(tics, values, new_tics, fill='interp'):
 
     return new_values
 
+def dicts2bids(chan_values, sig_values, new_vol_array):
 
+    # Initialize BIDS file as matrix of zeros
+    chan = list(chan_values.keys())[0]
+    ncol = len(chan_values) + len(sig_values) + 1
+    nrow = len(chan_values[chan])
+    bids_file = np.zeros((nrow, ncol))
+    json_headers = []
+
+    # Loop through the channel headers
+    nc = 0
+    for chan in chan_values.keys():
+        bids_file[:,nc] = chan_values[chan]
+        json_headers.append(chan)
+        nc += 1
+
+    # Now loop through the signal triggers.  Currently set up to be the same for each channel.
+    for sig in sig_values.keys():
+        bids_file[:,nc] = sig_values[sig]
+        json_headers.append(sig)
+        nc += 1
+
+    # Now add the new vol tics
+    bids_file[:,nc] = new_vol_array
+    json_headers.append('scanner')
+
+    return bids_file, json_headers

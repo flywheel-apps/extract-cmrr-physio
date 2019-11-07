@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+import traceback
 import flywheel
 from utils import futils as fu
 from utils import physio as ph
@@ -167,9 +167,10 @@ def main():
 
         # Set up Custom Dicionary to host user variables
         gear_context.custom_dict = {}
-
         gear_context.custom_dict['environ'] = environ_json
+
         # Create a 'dry run' flag for debugging
+        gear_context.custom_dict['dry-run'] = gear_context.config['Dry-Run']
 
         # Set up a field for physio dictionaries (used for bidsifying and qc)
         gear_context.custom_dict['physio-dicts'] = {}
@@ -195,7 +196,6 @@ def main():
         # Now we need to unzip it:
         uz_dir = op.join('/tmp', 'unzipped_dicom')
         unzip_dicom_command = ['unzip','-o', dicom, '-d', uz_dir]
-
         ###########################################################################
         # Try to run the unzip command:
         try:
@@ -251,10 +251,15 @@ def main():
         # First let's check the output.  We'll try to make this robust for any measurement:
         gear_context.log.debug('Globbing Physio')
         all_physio = glob.glob(op.join(physio_output_dir, '*.log'))
-        info_file = glob.glob(op.join(physio_output_dir, '*Info.log'))[0]
+        info_file = glob.glob(op.join(physio_output_dir, '*Info.log'))
+        if not info_file:
+            gear_context.log.warning('No Info file found.  Failed Extraction?')
+            return
+        else:
+            info_file = info_file[0]
 
         # Handle errors and warnings about missing physio data
-        if len(all_physio) == 0 or (len(all_physio) == 1 and len(info) == 1):
+        if len(all_physio) == 0 or len(all_physio) == 1:
             gear_context.log.warning('No physio signals extracted')
             return
 
@@ -275,11 +280,11 @@ def main():
             try:
                 # Set the info object
                 physio.set_info(info)
-                physio.parent_dicom = gear_context.get_input_path('DICOM_ARCHIVE')
+                physio.parent_dicom = raw_dicom[0]
 
                 # Set some values that will be set by the config file
                 physio.fill_val = gear_context.config['Fill_Value']
-                physio.interp = gear_context.config['INterpolation_Method']
+                physio.interp = gear_context.config['Interpolation_Method']
                 physio.tic_fill_strategy = gear_context.config["Missing_Data"]
 
                 # Mandatory Processing step:
@@ -301,6 +306,7 @@ def main():
                     physio.bids_o_matic_9000(processed=process, matches=matches, zip_output=False)
 
             except Exception as e:
+                traceback.print_exc()
                 gear_context.log.fatal(e)
                 sys.exit(1)
 
@@ -321,4 +327,6 @@ def main():
 if __name__ == '__main__':
     main()
 
+## TODO:
+# Add data quality flag for large gaps and lots of high/low cutoff values
 
