@@ -2,18 +2,13 @@
 import traceback
 import flywheel
 from utils import futils as fu
-from utils import physio as ph
 import logging
 from utils.Common import exec_command
 import os.path as op
 import os
 import glob
 import sys
-import numpy as np
 import json
-import pydicom
-import shutil
-import matplotlib.pyplot as pl
 from pprint import pprint as pp
 import copy
 import utils.physio as phys
