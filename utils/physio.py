@@ -210,7 +210,8 @@ class physio:
                 if mx > self.proc_max:
                     self.proc_max = mx
 
-            self.proc_data = True
+            if self.tic_fill_strategy != 'none':
+                self.proc_data = True
 
         except Exception as e:
             raise Exception("Error interpolating values for {}".format(self.type)) from e
@@ -270,13 +271,15 @@ class physio:
                 if optimal_len < len(self.raw_values[chan]):
                     optimal_len = len(self.raw_values[chan])
 
-            new_tics = np.arange(0,optimal_len) * self.sample_tics + min_tic
+            new_tics = np.arange(0, optimal_len) * self.sample_tics + min_tic
+
             for chan in self.channels:
-                tic_start = np.argmax(new_tics >= self.raw_tics[chan])
+                tic_start = np.argmax(new_tics >= self.raw_tics[chan][0])
                 new_vals = np.zeros(optimal_len)
-                new_vals[tic_start:] = self.raw_values[chan]
+                new_vals[tic_start:tic_start+len(self.raw_values[chan])] = self.raw_values[chan]
                 self.chan_values[chan] = new_vals
-                self.acq_tics[chan]=new_tics
+                self.acq_tics[chan] = new_tics
+                self.acq_times[chan] = new_tics * self.tictime
 
                 # We need to ensure that all channels have the same length for bids
                 self.sig_values[chan] = {}

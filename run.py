@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import traceback
 import flywheel
 from utils import futils as fu
 import logging
@@ -17,10 +16,9 @@ import utils.physio as phys
 flywheelv0 = "/flywheel/v0"
 environ_json = '/tmp/gear_environ.json'
 
-##--------  Gear Specific files/folders/values  ----##
-tic_len = 2.5e-3  # seconds, length of one "tick"
 
 def data_classifier(context,output_dir):
+
 
     """
     This function takes the gear context and the output directory and loads the "physio_dicts" from the context
@@ -28,8 +26,9 @@ def data_classifier(context,output_dir):
     these keys point to that filename.  Loop through the log files and the bids files and set metadata based off
     dictionary parameters and inhereted properties.
     :param context: gear context
+    :type context: Context
     :param output_dir: the directory to save the metadata file in.
-    :return:
+    :type output_dir: str
     """
 
     custom_physio_class = "Physio"
@@ -307,11 +306,13 @@ def main():
             info = phys.phys_info(info_file)
             physio_objects = []
 
-            for physio in all_physio:
+            for physio_file in all_physio:
 
                 # If it's the info file, we just made that object, so skip it.
-                if physio == info_file:
+                if physio_file == info_file:
                     continue
+
+                physio = phys.physio(physio_file)
 
                 # Set the info object
                 physio.set_info(info)
@@ -353,8 +354,7 @@ def main():
 
         # Catch any exceptions
         except Exception as e:
-            gear_context.log.fatal(traceback.print_exc())
-            gear_context.log.fatal(e)
+            gear_context.log.exception(e)
             sys.exit(1)
 
 if __name__ == '__main__':
