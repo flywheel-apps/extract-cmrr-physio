@@ -54,6 +54,10 @@ class physio:
         self.sample_tics = 0       # Sample rate (in tics)
         self.sample_rate = 0       # Sample rate (in Hz)
 
+        self.bids_tsv = []
+        self.bids_json = {}
+        self.bids_file = ''
+
         if logfile:
             self.logfile = logfile
             self.load_physio()
@@ -454,7 +458,8 @@ class physio:
             pl.plot(self.acq_tics[chan],self.chan_values[chan])
 
 
-    def bids_o_matic_9000(self, processed=True, matches='', zip_output=False):
+    def bids_o_matic_9000(self, processed=True, matches='', zip_output=False, save_json=True):
+
         """
         This function takes physio.log data that's been convered to physio dict objects (stored in gear context custom_dict{}
         This creates files from those dictionaries in BIDS format.
@@ -464,7 +469,7 @@ class physio:
         :return: NOTHING
         """
         try:
-            if processed == False:
+            if not processed:
                 print('Note: its highly recommended that the data is processed before bidsifying')
                 # Do minimal processing on raw (align tics and create trigger timeseries')
                 self.minimal_process_raw()
@@ -542,8 +547,13 @@ class physio:
             json_dict['StartTime'] = (temp_tics[0] - info_dict.ACQ_START_TICS[0]) * self.tictime
             json_dict['Columns'] = json_header
 
-            with open(json_output, 'w') as json_file:
-                json.dump(json_dict, json_file)
+            if save_json:
+                with open(json_output, 'w') as json_file:
+                    json.dump(json_dict, json_file)
+
+            self.bids_tsv = bids_file
+            self.bids_json = json_dict
+            self.bids_file = physio_output
 
             # EASY PEASY LIVIN GREEZY
 

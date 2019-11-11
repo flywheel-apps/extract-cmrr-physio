@@ -210,6 +210,27 @@ def extract_zipped_dicom(gear_context, dicom):
 
     return raw_dicom
 
+def physio_json_2_bids_metadata(context,bids_file,json):
+    """
+    This function updates the info section of the metadata for file bids_file with info found in the json dict.
+    :param context: gear context
+    :param bids_file: filename to update the metadata of
+    :param json: the json dictionary with the necessary keys
+    :return:
+    """
+
+    update_metadata = {
+        "info": {
+            "SamplingFrequency": json['SamplingFrequency'],
+            "StartTime": json['StartTime'],
+            "Columns": json['Columns']
+        }
+    }
+
+    context.update_file_metadata(bids_file, update_metadata)
+
+
+
 def main():
 
     with flywheel.gear_context.GearContext() as gear_context:
@@ -286,14 +307,11 @@ def main():
             info = phys.phys_info(info_file)
             physio_objects = []
 
-            for phys_file in all_physio:
+            for physio in all_physio:
 
                 # If it's the info file, we just made that object, so skip it.
-                if phys_file == info_file:
+                if physio == info_file:
                     continue
-                physio_objects.append(phys.physio(phys_file))
-
-            for physio in physio_objects:
 
                 # Set the info object
                 physio.set_info(info)
@@ -321,6 +339,9 @@ def main():
                 if gear_context.config['Generate_Bids']:
                     physio.bids_o_matic_9000(processed=process, matches=matches, zip_output=False)
 
+                    physio_json_2_bids_metadata(gear_context, physio.bids_file, physio.bids_json)
+
+                #physio_objects.append(phys.physio(physio))
 
             ###########################################################################
             # If the user doesn't want to keep these log files, delete them.

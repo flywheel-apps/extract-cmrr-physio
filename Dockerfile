@@ -30,9 +30,7 @@ RUN apt-get -qq update && apt-get -qq install -y \
 COPY requirements.txt ./requirements.txt
 
 
-RUN pip3 install -r requirements.txt
-
-RUN rm -rf /root/.cache/pip && \
+RUN pip3 install -r requirements.txt && rm -rf /root/.cache/pip && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Configure environment variables for MCR
