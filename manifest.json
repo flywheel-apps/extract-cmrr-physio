@@ -8,7 +8,7 @@
   "source": "https://github.com/flywheel-apps/extract-cmrr-physio/releases/tag/1.1.0",
   "license": "MIT",
   "flywheel": "0",
-  "version": "1.1.6",
+  "version": "1.1.0_dev1",
   "custom": {
     "docker-image": "flywheel/extract-cmrr-physio:1.1.0",
     "gear-builder": {
@@ -32,7 +32,7 @@
     "Generate_Bids": {
       "description": "Generate BIDS compatible physio files",
       "type": "boolean",
-      "default": false
+      "default": true
     },
     "Generate_json": {
       "description": "Generate the BIDS '.json' file for viewing",
@@ -50,23 +50,22 @@
       "default": true
     },
 
-
     "Process_Data": {
-      "description": "Perform processing on the physio data, or push to BIDS raw",
+      "description": "Check to perform processing on the physio data, or leave unchecked to push raw data to BIDS format",
       "type": "boolean",
-      "default": false
+      "default": true
     },
 
     "Missing_Data": {
       "description": "How to handle missing data in the physio recordings",
       "type": "string",
       "enum": [
-              "preserve",
+              "gap_fill",
               "uniform",
               "upsample",
               "none"
                ],
-      "default": "none"
+      "default": "gap_fill"
     },
 
     "Interpolation_Method": {
@@ -86,7 +85,7 @@
     },
 
     "Fill_Value": {
-      "description": "The value to fill missing data with if Interpolation_Methos is 'Fill'",
+      "description": "The value to fill missing data with if Interpolation_Methods is 'Fill'",
       "type": "number",
       "default": 0
     },

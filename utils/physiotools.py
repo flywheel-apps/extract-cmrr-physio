@@ -9,10 +9,10 @@ def create_new_tics(tics, rate, mintic='', maxtic='',option='preserve'):
     """
     This function creates new tics in an attempt to account for missing data using the following settings:
 
-     "preserve": enforces a "best fit" by stepping through the acquisition tic times and ensuring that the next sample
+     "gap_fill": enforces a "best fit" by stepping through the acquisition tic times and ensuring that the next sample
     is at least within 1.5x the sampling period.  If it's more than this, it inserts a new sample tic time.
     This works particularly well when samples are skipped in integer values.  If fractional samples are skipped, this
-    can become less ideal. This that the ACTUAL acquired times are used, and the sampling rate is AS CLOSE as possible
+    can become less ideal. This method ensures that the ACTUAL acquired times are used, and the sampling rate is AS CLOSE as possible
      to ideal, however there still may be small variations.  (much less than without this function though).  This will
      probably result in fewer interpolation errors in the future.  This also works well for signal dropout, where data
      is missing for large chunks of time.
@@ -50,7 +50,7 @@ def create_new_tics(tics, rate, mintic='', maxtic='',option='preserve'):
         max_tic = max(tics)
 
 
-    if option == 'preserve':
+    if option == 'gap_fill':
 
         custom_tics = []
 

@@ -213,6 +213,7 @@ def physio_json_2_bids_metadata(context,bids_file,json):
     """
     This function updates the info section of the metadata for file bids_file with info found in the json dict.
     :param context: gear context
+    :type context: class: `flywheel.gear_context.GearContext`
     :param bids_file: filename to update the metadata of
     :param json: the json dictionary with the necessary keys
     :return:

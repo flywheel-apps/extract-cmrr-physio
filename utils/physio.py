@@ -14,7 +14,7 @@ class physio:
     that call on the toolkit "physiotools" to perform various necessary preprocessing steps for bidsification and
     general data management.
     """
-    def __init__(self ,logfile):
+    def __init__(self, logfile):
 
         self.parent_dicom = ''
         self.output_dir = ''
@@ -69,7 +69,6 @@ class physio:
         """
         Loads in the physio file specified by self.logfile and generates a physio dict, form which all processing is
         based off of
-        :return:
         """
         try:
             self.physio_dict = pt.log2dict(self.logfile)
@@ -94,7 +93,6 @@ class physio:
         Sets the info.log file (which is also a physio object) so this object can reference it and obtain things like
         when each volume was acquired in tic times.
         :param phys_obj: the phy_obj (a special object just for the info.log file from CMRR extraction)
-        :return:
         """
         try:
             if isinstance(phys_obj, phys_info):
@@ -108,7 +106,6 @@ class physio:
     def do_raw_qa(self):
         """
         Performs QA measures on the raw data (directly from the physio dict)
-        :return:
         """
         try:
             for chan in self.channels:
@@ -120,7 +117,6 @@ class physio:
     def do_proc_qa(self):
         """
         performs QA measures on the processed data
-        :return:
         """
 
         try:
@@ -137,7 +133,6 @@ class physio:
         rarely arise, but they pose a problem.  If a duplicate tic time is found, the sample that is last in the array
         will be used.  This step is mandatory for all physio data, even if no processing is desired.
         calls physiotools.remove_duplicate_tics
-        :return:
         """
         try:
             for chan in self.channels:
@@ -156,7 +151,6 @@ class physio:
         This generates a new tic array, depending on the "tic_fill_strategy" value, set by the user.  If set to "none",
         this function can be called and will return the same array value, which will then be stored in "acq_tics"
         calls pythontools.create_new_tics
-        :return:
         """
 
         #print(self.tic_fill_strategy)
@@ -188,7 +182,6 @@ class physio:
         This function takes the raw channel values and the new custom tics array (from create_new_tic_array)
         and interpolates the raw data to that new tic timeseries.  Interpolation method is based on the value
         "interp_method",
-        :return:
         """
 
         try:
@@ -218,6 +211,10 @@ class physio:
 
 
     def triggers_2_timeseries(self):
+        """
+        This maps the times of the triggers to a timeseries array.
+
+        """
 
         try:
             for chan in self.channels:
@@ -259,12 +256,11 @@ class physio:
         """
         This function is only going to ensure that the channels have the same length by padding at the sample rate
         This is to help BIDS output.
-        :return:
         """
         try:
             min_tic = np.amin(self.physio_dict['ACQ_TIME_TICS'])
             max_tic = np.amax(self.physio_dict['ACQ_TIME_TICS'])
-            optimal_tics = np.arange(min_tic,max_tic,self.sample_tics)
+            optimal_tics = np.arange(min_tic, max_tic, self.sample_tics)
             optimal_len = len(optimal_tics)
             for chan in self.channels:
 
@@ -286,6 +282,11 @@ class physio:
                 for sig in self.signals:
                     self.sig_values[chan][sig] = pt.sig_2_timeseries(self.acq_tics[chan], self.raw_tics[sig])
 
+                mx = max(self.chan_values[chan])
+
+                if mx > self.proc_max:
+                    self.proc_max = mx
+
             self.proc_data = True
 
         except Exception as e:
@@ -298,7 +299,6 @@ class physio:
          interp_values_to_newtics(), triggers_2_timeseries()) within physiotools in an efficient loop.
          But sometimes efficient loops are harder to understand, which is why there are other, less efficient,
          but more clear functions that do the same thing
-        :return:
         """
 
         try:
@@ -332,14 +332,17 @@ class physio:
         """
         This function runs the full qc on both the raw and processed data, compares them, and generates a qa plot of
         the channels and trigger signals.
-        :return:
         """
         try:
             if self.proc_data == False:
+                # self.chan_values = self.raw_values
+                # self.acq_tics = self.raw_tics
+                # self.acq_times = self.raw_times
                 self.minimal_process_raw()
 
             self.do_raw_qa()
             self.do_proc_qa()
+
             qa_text = ''
             for chan in self.channels:
                 raw_off  = self.raw_qa[chan]['Expected_Time'] - self.raw_qa[chan]['Actual_Time']
@@ -359,6 +362,9 @@ class physio:
                 qa_text += 'proc largest gap: {0:.4f} ms\n'.format(proc_max_skip)
                 qa_text += '% tic match in interp: {0:.2f}\n'.format(pmatch)
 
+            if self.proc_data == False:
+                qa_text = ''
+
             self.plot_physio_qc(qa_text)
 
         except Exception as e:
@@ -369,9 +375,8 @@ class physio:
         """
         This function plots the physio QC (a plot of all channels, and all trigger signals).
         with a text string that can be anything, which is printed on the left side of the plot
-        :param qa_text:
-        :param output_path:
-        :return:
+        :param qa_text: text to be printed on the graph
+        :param output_path: the output path to save the graph to
         """
         try:
             if not output_path:
@@ -443,7 +448,6 @@ class physio:
     def plot_raw(self):
         """
         Just plot the raw data, quick and dirty
-        :return:
         """
 
         pl.figure()
@@ -454,7 +458,6 @@ class physio:
     def plot_proc(self):
         """
         plot the processed data, quick and dirty
-        :return:
         """
         pl.figure()
         for chan in self.channels:
@@ -467,9 +470,8 @@ class physio:
         This function takes physio.log data that's been convered to physio dict objects (stored in gear context custom_dict{}
         This creates files from those dictionaries in BIDS format.
 
-        :param raw_dicom: the raw dicom file (incase we need to go into it for naming purposes)
+        :param raw_dicom: the raw dicom file (in case we need to go into it for naming purposes)
         :param context: the gear context
-        :return: NOTHING
         """
         try:
             if not processed:
