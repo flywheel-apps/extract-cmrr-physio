@@ -339,7 +339,7 @@ def main():
 
                 # If BIDS is desired:
                 if gear_context.config['Generate_Bids']:
-                    physio.bids_o_matic_9000(processed=process, matches=matches, zip_output=False)
+                    physio.bids_o_matic_9000(processed=process, matches=matches, zip_output=False, save_json=gear_context.config['Generate_json'])
 
                     physio_json_2_bids_metadata(gear_context, physio.bids_file, physio.bids_json)
 
