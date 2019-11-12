@@ -497,9 +497,7 @@ class physio:
             # Extract the new_vol_tics from the info dict
             info_dict = self.info
             new_vol_ticks, new_vol_array = info_dict.match_volstart_to_tic(temp_tics)
-
             bids_file, json_header = pt.dicts2bids(self.chan_values, self.sig_values[temp_chan], new_vol_array)
-
             # Find the sample interval (in tics)
             json_dict['SamplingFrequency'] = self.sample_rate
 
@@ -529,6 +527,8 @@ class physio:
             header_lookup = {'EXT':'triggers', 'RESP':'respiration', 'PULS':'pulse', 'ECG':''}
             hdr = header_lookup[self.type]
 
+
+
             if hdr:
                 inds = np.where([i == self.type for i in json_header])[0][0]
                 json_header[inds] = hdr
@@ -538,7 +538,7 @@ class physio:
 
             # Set the file name and save the file
             physio_output = op.join(output_dir, '{}_recording-{}_physio.tsv'.format(matches, label))
-            np.savetxt(physio_output, bids_file, fmt='%d', delimiter='\t')
+            np.savetxt(physio_output, bids_file, fmt='%.0f', delimiter='\t')
 
             if zip_output:
                 # Zip the file

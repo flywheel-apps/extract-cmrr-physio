@@ -120,10 +120,10 @@ def interp_vals(old_tics, old_vals, new_tics, fill='linear'):
     :param fill: the fill strategy (an interpolation method or a fill value)
     :return: returns the new array with the values filled appropriately.
     """
-
     if fill =='nan' or isinstance(fill,int) or isinstance(fill,float):
         new_vals = np.empty(len(new_tics))
         if fill == 'nan':
+            print('filling with nans')
             new_vals[:] = np.nan
         else:
             new_vals[:] = fill

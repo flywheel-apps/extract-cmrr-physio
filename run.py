@@ -321,7 +321,7 @@ def main():
 
                 # Set some values that will be set by the config file
                 physio.fill_val = gear_context.config['Fill_Value']
-                physio.interp = gear_context.config['Interpolation_Method']
+                physio.interp_method = gear_context.config['Interpolation_Method']
                 physio.tic_fill_strategy = gear_context.config["Missing_Data"]
 
                 # Mandatory Processing step:
