@@ -17,7 +17,7 @@ flywheelv0 = "/flywheel/v0"
 environ_json = '/tmp/gear_environ.json'
 
 
-def data_classifier(context,output_dir):
+def data_classifier(context,physio_dict,file):
 
 
     """
@@ -46,10 +46,10 @@ def data_classifier(context,output_dir):
 
 
     # Attempt to recover classification info from the input file
-    (config, modality, classification) = ([], None, [])
+    (config, modality, classification) = ([], None, {})
     try:
         classification = inputs['DICOM_ARCHIVE']['object']['classification']
-        classification['Custom'] =['Physio']
+        classification['Custom'] = ['Physio']
     except:
         context.log.info('  Cannot determine classification from config.json.')
         classification = {'Custom':['Physio']}
@@ -59,88 +59,66 @@ def data_classifier(context,output_dir):
         context.log.info('  Cannot determine modality from config.json.')
         modality = 'MR'
 
-    files = []
-    for physio in context.custom_dict['physio-dicts']:
 
-        # Extract the dictionary
-        physio_dict = context.custom_dict['physio-dicts'][physio]
-        label = physio_dict['LogDataType']
+    # Extract the dictionary
+    label = physio_dict['LogDataType']
 
-        # Now we'll determine the custom classification
-        if label == 'EXT':
-            classification['Custom'] = [custom_ext_class, custom_physio_class]
-            modality = 'MR'
-            context.log.debug('setting custom info for trigger')
+    # Now we'll determine the custom classification
+    if label == 'EXT':
+        classification['Custom'] = [custom_ext_class, custom_physio_class]
+        modality = 'MR'
+        context.log.debug('setting custom info for trigger')
 
-        elif label == 'ECG':
-            modality = 'ECG'
-            classification['Custom'] = [custom_ecg_class, custom_physio_class]
-            context.log.debug('setting custom info for ECG')
+    elif label == 'ECG':
+        modality = 'ECG'
+        classification['Custom'] = [custom_ecg_class, custom_physio_class]
+        context.log.debug('setting custom info for ECG')
 
-        elif label == 'ACQUISITION_INFO':
-            classification['Custom'] = [custom_info_class, custom_physio_class]
-            context.log.debug('setting custom info for acquisition info')
+    elif label == 'ACQUISITION_INFO':
+        classification['Custom'] = [custom_info_class, custom_physio_class]
+        context.log.debug('setting custom info for acquisition info')
 
-        else:
-            classification['Custom'] = [custom_physio_class]
-            modality = 'MR'
-            context.log.debug('setting custom info for physio')
+    else:
+        classification['Custom'] = [custom_physio_class]
+        modality = 'MR'
+        context.log.debug('setting custom info for physio')
 
 
-        # This will loop through each physio_dict's log and bids keys
-        for file_key in ['log_file', 'bids_tsv', 'bids_json']:
 
-            # Label the log files
-            if physio_dict[file_key]:
+    if file.endswith('.qa.png'):
+        ftype = 'qa'
 
-                # First set the filetype:
-                f = physio_dict[file_key]
+    elif file.endswith('.log'):
+        ftype = 'log'
 
-                if f.endswith('.qa.png'):
-                    ftype = 'qa'
+    elif file.endswith('.tsv.gz') or file.endswith('.tsv'):
+        ftype = 'tabular data'
 
-                elif f.endswith('.log'):
-                    ftype = 'log'
+    elif file.endswith('.json'):
+        ftype = 'json'
 
-                elif f.endswith('.tsv.gz'):
-                    ftype = 'tabular data'
-
-                elif f.endswith('.json'):
-                    ftype = 'json'
-
-                else:
-                    ftype = 'unknown'
+    else:
+        ftype = 'unknown'
 
 
 
 
-            fdict = {'name': f,
-                     'type': ftype,
-                     'classification': copy.deepcopy(classification),
-                     'info': image_info,
-                     'modality': modality}
+    fdict = {'name': file,
+             'type': ftype,
+             'classification': copy.deepcopy(classification),
+             'info': image_info,
+             'modality': modality}
 
-            files.append(fdict)
 
-            # Print info to log
-            context.log.info('file:\t{}\n'.format(f) +
-                             'type:\t{}\n'.format(ftype) +
-                             'classification:\t{}\n'.format(pp(classification)) +
-                             'modality:\t{}\n'.format(modality))
+    # Print info to log
+    context.log.info('file:\t{}\n'.format(file) +
+                     'type:\t{}\n'.format(ftype) +
+                     'classification:\t{}\n'.format(pp(classification)) +
+                     'modality:\t{}\n'.format(modality))
 
-    # Collate the metadata and write to file
-    metadata = {}
-    metadata['acquisition'] = {}
-    metadata['acquisition']['files'] = files
-    #pp(metadata)
 
-    metadata_file = os.path.join(output_dir, '.metadata.json')
-    with open(metadata_file, 'w') as metafile:
-        json.dump(metadata, metafile)
+    context.update_file_metadata(file, fdict)
 
-    metadata_file = os.path.join(output_dir, 'metaout.json')
-    with open(metadata_file, 'w') as metafile:
-        json.dump(metadata, metafile)
 
 
 def setup_logger(gear_context):
@@ -309,6 +287,12 @@ def main():
 
             for physio_file in all_physio:
 
+                try:
+                    data_classifier(gear_context, physio.physio_dict, physio.logfile)
+                except Exception as e:
+                    gear_context.log.info("error updating metadata in log")
+                    gear_context.log.exception(e)
+
                 # If it's the info file, we just made that object, so skip it.
                 if physio_file == info_file:
                     continue
@@ -342,8 +326,13 @@ def main():
                     physio.bids_o_matic_9000(processed=process, matches=matches, zip_output=False, save_json=gear_context.config['Generate_json'])
 
                     physio_json_2_bids_metadata(gear_context, physio.bids_file, physio.bids_json)
-
+                    try:
+                        data_classifier(gear_context, physio.physio_dict, physio.bids_file)
+                    except Exception as e:
+                        gear_context.log.info("error updating metadata in BIDS file")
+                        gear_context.log.exception(e)
                 #physio_objects.append(phys.physio(physio))
+
 
             ###########################################################################
             # If the user doesn't want to keep these log files, delete them.

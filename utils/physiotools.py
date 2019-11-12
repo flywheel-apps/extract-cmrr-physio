@@ -123,7 +123,6 @@ def interp_vals(old_tics, old_vals, new_tics, fill='linear'):
     if fill =='nan' or isinstance(fill,int) or isinstance(fill,float):
         new_vals = np.empty(len(new_tics))
         if fill == 'nan':
-            print('filling with nans')
             new_vals[:] = np.nan
         else:
             new_vals[:] = fill
