@@ -583,7 +583,7 @@ class phys_info:
         self.ACQ_START_TICS = []
         self.NEW_VOL_TICS = []
         self.NEW_VOL_TIMES = []
-
+        self.logfile = logfile
         self.info_dict = pt.log2dict(logfile)
 
         self.NEW_VOL_TICS, self.NEW_VOL_TIMES = self.get_volume_start_tics()

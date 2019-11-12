@@ -110,11 +110,6 @@ def data_classifier(context,physio_dict,file):
              'modality': modality}
 
 
-    # Print info to log
-    context.log.info('file:\t{}\n'.format(file) +
-                     'type:\t{}\n'.format(ftype) +
-                     'classification:\t{}\n'.format(pp(classification)) +
-                     'modality:\t{}\n'.format(modality))
 
 
     context.update_file_metadata(file, fdict)
@@ -283,15 +278,17 @@ def main():
             ####   Main Physio Processing/BIDS creation
             ######################################################
             info = phys.phys_info(info_file)
+
+            try:
+                data_classifier(gear_context, info.info_dict, info.logfile)
+            except Exception as e:
+                gear_context.log.info("error updating metadata in log")
+                gear_context.log.exception(e)
             physio_objects = []
 
             for physio_file in all_physio:
 
-                try:
-                    data_classifier(gear_context, physio.physio_dict, physio.logfile)
-                except Exception as e:
-                    gear_context.log.info("error updating metadata in log")
-                    gear_context.log.exception(e)
+
 
                 # If it's the info file, we just made that object, so skip it.
                 if physio_file == info_file:
@@ -302,6 +299,13 @@ def main():
                 # Set the info object
                 physio.set_info(info)
                 physio.parent_dicom = raw_dicom[0]
+
+                try:
+                    data_classifier(gear_context, physio.physio_dict, physio.logfile)
+                except Exception as e:
+                    gear_context.log.info("error updating metadata in log")
+                    gear_context.log.exception(e)
+
 
                 # Set some values that will be set by the config file
                 physio.fill_val = gear_context.config['Fill_Value']
