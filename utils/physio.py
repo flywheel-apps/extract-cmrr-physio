@@ -56,6 +56,7 @@ class physio:
 
         self.bids_tsv = []
         self.bids_json = {}
+        self.bids_json_file = ''
         self.bids_file = ''
 
         if logfile:
@@ -556,6 +557,7 @@ class physio:
                 with open(json_output, 'w') as json_file:
                     json.dump(json_dict, json_file)
 
+            self.bids_json_file = json_output
             self.bids_tsv = bids_file
             self.bids_json = json_dict
             self.bids_file = physio_output

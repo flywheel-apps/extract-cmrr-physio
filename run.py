@@ -18,15 +18,13 @@ environ_json = '/tmp/gear_environ.json'
 
 
 def data_classifier(context,physio_dict,file):
-
-
     """
     This function takes the gear context and the output directory and loads the "physio_dicts" from the context
     custom dicts object.  Each physio dict has a key "['bids_file']" and "['log_file'].  if these files were created,
     these keys point to that filename.  Loop through the log files and the bids files and set metadata based off
     dictionary parameters and inhereted properties.
     :param context: gear context
-    :type context: Context
+    :type context: class: `flywheel.gear_context.GearContext`
     :param output_dir: the directory to save the metadata file in.
     :type output_dir: str
     """
@@ -40,7 +38,7 @@ def data_classifier(context,physio_dict,file):
 
     # Check if physio is in the input object's information anywhere:
     imtype = image_info['ImageType']
-    if not any([i=='PHYSIO' for i in imtype]):
+    if not any([i == 'PHYSIO' for i in imtype]):
         context.log.warning('ImageType does not indicate physio, however by virtue of the gear running successfully, we will assume physio type')
 
 
@@ -100,17 +98,10 @@ def data_classifier(context,physio_dict,file):
     else:
         ftype = 'unknown'
 
-
-
-
     fdict = {'name': file,
              'type': ftype,
              'classification': copy.deepcopy(classification),
-             'info': image_info,
              'modality': modality}
-
-
-
 
     context.update_file_metadata(file, fdict)
 
@@ -120,9 +111,10 @@ def setup_logger(gear_context):
     """
     This function simply sets up the gear logger to Flywheel SSE best practices
     :param gear_context: the gear context
-    :return: none
-    """
-    #### Setup logging as per SSE best practices
+    :type gear_context: class: `flywheel.gear_context.GearContext`
+]    """
+
+    # Setup logging as per SSE best practices
     fmt = '%(asctime)s %(levelname)8s %(name)-8s %(funcName)s - %(message)s'
     logging.basicConfig(level=gear_context.config['gear-log-level'], format=fmt)
     gear_context.log = logging.getLogger('[flywheel/extract-cmrr-physio]')
@@ -136,8 +128,11 @@ def extract_zipped_dicom(gear_context, dicom):
     DICOM archive.  Errors are thrown if there's more or less than 1 dicom file extracted, or if the unzipped file
     is not of the supported type.
     :param gear_context: the gear context
+    :type gear_context: class: `flywheel.gear_context.GearContext`
     :param dicom: the zipped dicom file archive
+    :type dicom: str
     :return: the raw, unzipped file path
+    :type: str
     """
 
     try:
@@ -188,8 +183,9 @@ def physio_json_2_bids_metadata(context,bids_file,json):
     :param context: gear context
     :type context: class: `flywheel.gear_context.GearContext`
     :param bids_file: filename to update the metadata of
+    :type bids_file: str
     :param json: the json dictionary with the necessary keys
-    :return:
+    :type json: dict
     """
 
     update_metadata = {
@@ -205,6 +201,13 @@ def physio_json_2_bids_metadata(context,bids_file,json):
 
 
 def main():
+    """
+    This function creates the flywheel gear context, and uses the provided input and config settings to:
+    1) extract physio logs from a zipped dicom archive
+    2) generate BIDS complient physio data
+    3) clean up any undesired files
+
+    """
 
     with flywheel.gear_context.GearContext() as gear_context:
 
@@ -328,10 +331,14 @@ def main():
                 # If BIDS is desired:
                 if gear_context.config['Generate_Bids']:
                     physio.bids_o_matic_9000(processed=process, matches=matches, zip_output=False, save_json=gear_context.config['Generate_json'])
-
                     physio_json_2_bids_metadata(gear_context, physio.bids_file, physio.bids_json)
+
                     try:
                         data_classifier(gear_context, physio.physio_dict, physio.bids_file)
+
+                        if gear_context.config['Generate_json']:
+                            data_classifier(gear_context, physio.physio_dict, physio.bids_json_file)
+
                     except Exception as e:
                         gear_context.log.info("error updating metadata in BIDS file")
                         gear_context.log.exception(e)

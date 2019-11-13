@@ -55,4 +55,4 @@ COPY run.py ${FLYWHEEL}
 COPY utils ${FLYWHEEL}/utils
 
 # Configure entrypoint
-ENTRYPOINT ["/flywheel/v0/run.py"]
+ENTRYPOINT ["python3 /flywheel/v0/run.py"]
