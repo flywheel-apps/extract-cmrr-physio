@@ -7,7 +7,7 @@
 
 
 # First start with a python runtime
-FROM flywheel/python:dcmtk.latest
+FROM flywheel/python:3.7.4-dcmtk3.6.4
 
 # Now we'll grab and install the matlab MCR for 2015b
 RUN apt-get -qq update && apt-get -qq install -y \

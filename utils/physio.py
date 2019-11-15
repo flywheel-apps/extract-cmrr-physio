@@ -238,19 +238,19 @@ class physio:
         4. take trigger signals and convert them to binary timeseries'.
 
         """
-        try:
-            self.remove_duplicate_tics()
-            #print('Removed Duplicates')
-            self.create_new_tic_array()
-            #print('Created new Tics')
-            self.interp_values_to_newtics()
-            #print('Interped Values')
-            self.triggers_2_timeseries()
-            #print("triggers to ts")
-            self.proc_data = True
 
-        except Exception:
-            raise
+        # No need for try:except here because it's handled in each sub-function
+        self.remove_duplicate_tics()
+        #print('Removed Duplicates')
+        self.create_new_tic_array()
+        #print('Created new Tics')
+        self.interp_values_to_newtics()
+        #print('Interped Values')
+        self.triggers_2_timeseries()
+        #print("triggers to ts")
+        self.proc_data = True
+
+
 
 
     def minimal_process_raw(self):
@@ -448,7 +448,7 @@ class physio:
 
     def plot_raw(self):
         """
-        Just plot the raw data, quick and dirty
+        Debugging Tool. Just plot the raw data, quick and dirty.
         """
 
         pl.figure()
@@ -458,7 +458,7 @@ class physio:
 
     def plot_proc(self):
         """
-        plot the processed data, quick and dirty
+        Debugging Tool. plot the processed data, quick and dirty
         """
         pl.figure()
         for chan in self.channels:
