@@ -14,33 +14,33 @@ Build context for a [Flywheel Gear](https://github.com/flywheel-io/gears/tree/ma
 - **DICOM_ARCHIVE**:  Set as an input file, a dicom zip archive containing the dicom with physiological recordings
 
 ### Config settings: 
--**Dry-Run**: simply prints command calls to the log rather than actually processing. (Default: off)
+* **Dry-Run**: simply prints command calls to the log rather than actually processing. (Default: off)
 
--**gear-log-level**: what level of detail you would like in the log.  (Default: INFO)
+* **gear-log-level**: what level of detail you would like in the log.  (Default: INFO)
 
--**Generate_Bids**: Check this to generate the .tsv BIDS data.  If this is unchecked, only the raw .log files will be created.  (Default: checked)
+* **Generate_Bids**: Check this to generate the .tsv BIDS data.  If this is unchecked, only the raw .log files will be created.  (Default: checked)
 
--**Generate_json**: Check this to generate the BIDS .json file for you to view.  Flywheel does not need this file to export to BIDS.  It will automatically generate it from the .tsv file's metadata when you export the data to BIDS format.  This is just an option to create the file in case you want to look at it.  (Default: off)
+* **Generate_json**: Check this to generate the BIDS .json file for you to view.  Flywheel does not need this file to export to BIDS.  It will automatically generate it from the .tsv file's metadata when you export the data to BIDS format.  This is just an option to create the file in case you want to look at it.  (Default: off)
 
--**Generate_QA**: Check this to generate a QA image of what the BIDS data will look like based on the processing methods you select.  An image is generated for each type of physiological recording. (Default: On)
+* **Generate_QA**: Check this to generate a QA image of what the BIDS data will look like based on the processing methods you select.  An image is generated for each type of physiological recording. (Default: On)
 
--**Generate_Raw**:  Check this to keep the raw .log files extracted from the dicom.  If you uncheck this, the .log files are used to generate the bids .tsv files, and are then deleted.  This can help you limit file clutter.  (Default: On)
+* **Generate_Raw**:  Check this to keep the raw .log files extracted from the dicom.  If you uncheck this, the .log files are used to generate the bids .tsv files, and are then deleted.  This can help you limit file clutter.  (Default: On)
 
--**Missing_Data**: The strategy to use for missing data points.  This ONLY describes how the gear generates a new "tic times" array for the data.  Choices are:
+* **Missing_Data**: The strategy to use for missing data points.  This ONLY describes how the gear generates a new "tic times" array for the data.  Choices are:
 
---*gap_fill*: keeps all original sample tic times, and adds new time points at the specified sampling rate anywhere there is a gap.  If the time skipped between samples is not an even factor of the sampling rate, this still may result in small (less than 1/2 the sample time) offset.  Because tics are only added or modified where they are missing, these are the only points that will require interpolation.
---*uniform*: Takes the first tic time and the last tic time, and generates a uniform time array based on the specified sampling rate.  If time skipped between samples is not an even factor of the sampling rate, this may result in a new time array that's slightly shifted from the original.  This means that interpolation may need to be carried out for all these shifted timepoints.  However small these shifts may be, interpolation generally can introduce some error.  This is probably more acceptable for a slow signal (like RESP) than a fast signal (like ECG).
---*upsample*: upsample the entire array to the maximum sampling rate.  For Siemens, the minimum time between samples is 1 "tic", or 2.5ms, so the maximum sampling rate is 400Hz.  (Typically, ECG is sampled at 1 "tic" per sample, and RESP is sampled at 8 "tics" per sample).  Since every sample, regardless of the intended sampling rate, must happen at an integer number of tics, upsampling everything to 1 "tic" per sample preserves the original data, while also allowing you the option of resampling at a constant rate if you so choose.  You can also just pass in the new, upsampled array to BIDS.  It will reflect the new sampling rate change, and should be handled by any BIDS app without error.  
---*none*: do not do anything to address skipped samples.  If you have missing data in the signal, this method will add zeros to the end of the array until the array length matches the length of the fMRI scan, assuming a constant sampling rate (which BIDS does). 
+  * *gap_fill*: keeps all original sample tic times, and adds new time points at the specified sampling rate anywhere there is a gap.  If the time skipped between samples is not an even factor of the sampling rate, this still may result in small (less than 1/2 the sample time) offset.  Because tics are only added or modified where they are missing, these are the only points that will require interpolation.
+  * *uniform*: Takes the first tic time and the last tic time, and generates a uniform time array based on the specified sampling rate.  If time skipped between samples is not an even factor of the sampling rate, this may result in a new time array that's slightly shifted from the original.  This means that interpolation may need to be carried out for all these shifted timepoints.  However small these shifts may be, interpolation generally can introduce some error.  This is probably more acceptable for a slow signal (like RESP) than a fast signal (like ECG).
+  * *upsample*: upsample the entire array to the maximum sampling rate.  For Siemens, the minimum time between samples is 1 "tic", or 2.5ms, so the maximum sampling rate is 400Hz.  (Typically, ECG is sampled at 1 "tic" per sample, and RESP is sampled at 8 "tics" per sample).  Since every sample, regardless of the intended sampling rate, must happen at an integer number of tics, upsampling everything to 1 "tic" per sample preserves the original data, while also allowing you the option of resampling at a constant rate if you so choose.  You can also just pass in the new, upsampled array to BIDS.  It will reflect the new sampling rate change, and should be handled by any BIDS app without error.  
+  * *none*: do not do anything to address skipped samples.  If you have missing data in the signal, this method will add zeros to the end of the array until the array length matches the length of the fMRI scan, assuming a constant sampling rate (which BIDS does). 
 
--**Interpolation_Method**: If you chose to handle the missing data with "gap_fill", "uniform", or "upsample", there will be some kind of interpolation that must be carried out.  This will determine how the gear calculates signal values at the newly generated timepoints.  Different interpolation types are as follows:
---Standard interpolation options (linear, cubic, nearest, etc), 
---*fill*, which will fill any missing data with the numeric value found in the config tag "FIll_Value"
---*nan*, which will fill any missing data with "nan". (Currently buggy)
+* **Interpolation_Method**: If you chose to handle the missing data with "gap_fill", "uniform", or "upsample", there will be some kind of interpolation that must be carried out.  This will determine how the gear calculates signal values at the newly generated timepoints.  Different interpolation types are as follows:
+  * Standard interpolation options (linear, cubic, nearest, etc), 
+  * *fill*, which will fill any missing data with the numeric value found in the config tag "FIll_Value"  
+  * *nan*, which will fill any missing data with "nan". (Currently buggy)
 
--**Fill_Value**: A numeric value to fill any missing data with (if not "nan")
+* **Fill_Value**: A numeric value to fill any missing data with (if not "nan")
 
--**Process Data**: A remnant we will probably remove in the release version.  Checking this means it will do the interpolation/data filling processing.  Unchecking is essentially equivalent to selecting "none" for "Missing_Data"
+* **Process Data**: A remnant we will probably remove in the release version.  Checking this means it will do the interpolation/data filling processing.  Unchecking is essentially equivalent to selecting "none" for "Missing_Data"
 
 ## Function:
 
@@ -86,12 +86,20 @@ The QA images produced are for researchers to quickly determine if there's somet
 
 Note that there is no clipping of the signal from start to finish, and the signal is smooth, well defined, and consistent.
 
+
+---
+
+
 #### Pulse
 
 
 ![Good Pulse data](https://github.com/flywheel-apps/extract-cmrr-physio/blob/parker_BIDs_physio/QA_example/good_puls.png)
 
 Same as with the resp, notice that the signal is uninterupted with no clipping
+
+
+---
+
 
 #### ECG
 
@@ -129,6 +137,9 @@ The text in the bottom left is letting you know the extent of the data dropout, 
 - **proc offset**: The offset time between the number of tics and the expected length in the processed data (1.1 ms, down from 3949).
 - **proc largest gap**: The largest gap between consecutive samples in the processed data (8ms, which is the sample rate of the respiration data).
 -**% tic match in interp**: How many tic times used in the processed data for interpolatoin match exactly with real tic times.  100% in this case, but shifts/skips that are a fraction of the sample rate could result in tic times that don't line up with the raw data, and interpolation may introduce extra error for these timepoints.  
+
+
+---
 
 
 #### ECG
