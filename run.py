@@ -360,5 +360,10 @@ def main():
 if __name__ == '__main__':
     main()
 
-## TODO:
-# Add data quality flag for large gaps and lots of high/low cutoff values
+## TODO: Add data quality flag for large gaps and lots of high/low cutoff values
+
+## TODO: Speciofy that all modifications are done are raw
+## TODO: Unchecking "Process data" really does NOTHING
+## TODO: bids validator on .tsv files
+
+## TODO: ECG "nan" bug
