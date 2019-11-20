@@ -4,3 +4,6 @@
 utils/__pycache__
 /utils/cfmm2tar/
 /utils/extract_cmrr_physio.py
+/output/*
+/input/*
+/unzipped_dicom/*
