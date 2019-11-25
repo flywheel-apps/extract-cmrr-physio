@@ -30,6 +30,7 @@ def BuildCommandList(command, ParamList):
 
 
 def exec_command(context, command, shell=False, stdout_msg=None):
+
     context.log.info('Executing command: \n' + ' '.join(command)+'\n\n')
     if not context.custom_dict['dry-run']:
         # The 'shell' parameter is needed for bash output redirects 
@@ -53,29 +54,4 @@ def exec_command(context, command, shell=False, stdout_msg=None):
                               '\nfailed.')
             raise Exception(stderr)
 
-def set_subject(context):
-    """
-    This function queries the subject from the session only if the 
-    context.config['Subject'] is invalid or not present.
-    Exits ensuring the value of the subject is valid
-    """
-
-    if 'Subject' in context.config.keys():
-        # Correct for non-friendly characters
-        subject = re.sub('[^0-9a-zA-Z./]+', '_', context.config['Subject'])
-        if len(subject) > 0:
-            context.config['Subject'] = subject
-            return 
-
-    # Assuming valid client
-    fw = context.client
-    # Get the analysis destination ID
-    dest_id = context.destination['id']
-    # Assume that the destination object has "subject" as a parent
-    dest = fw.get(dest_id)
-    subj = fw.get(dest.parents['subject'])
-    subject = subj.label
-    # return the label of that subject
-    context.config['Subject'] = subject
-    context.log.info('Using {} as Subject ID.'.format(subject))
 

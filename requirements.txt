@@ -1,4 +1,5 @@
-flywheel-sdk
+flywheel-sdk==10.0.1
 numpy
 pydicom
 matplotlib
+scipy

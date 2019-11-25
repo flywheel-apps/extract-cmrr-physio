@@ -7,7 +7,7 @@
 
 
 # First start with a python runtime
-FROM flywheel/python:dcmtk.latest
+FROM flywheel/python:3.7.4-dcmtk3.6.4
 
 # Now we'll grab and install the matlab MCR for 2015b
 RUN apt-get -qq update && apt-get -qq install -y \
@@ -24,14 +24,14 @@ RUN apt-get -qq update && apt-get -qq install -y \
      ./install -destinationFolder /opt/mcr -agreeToLicense yes -mode silent && \
      cd / && \
      rm -rf mcr-install && \
-     pip3 install --upgrade pip
+     pip3 install --upgrade pip && \
+     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Really weird bug, setting LD_LIBRARY_PATH breaks pip, so run all the pip stuff before setting that.
 COPY requirements.txt ./requirements.txt
-RUN pip3 install -r requirements.txt
 
-RUN rm -rf /root/.cache/pip && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+RUN pip3 install -r requirements.txt && rm -rf /root/.cache/pip
 
 # Configure environment variables for MCR
 ENV LD_LIBRARY_PATH /opt/mcr/v90/runtime/glnxa64:/opt/mcr/v90/bin/glnxa64:/opt/mcr/v90/sys/os/glnxa64:/opt/mcr/v90/extern/bin/glnxa64
@@ -55,4 +55,4 @@ COPY run.py ${FLYWHEEL}
 COPY utils ${FLYWHEEL}/utils
 
 # Configure entrypoint
-ENTRYPOINT ["/flywheel/v0/run.py"]
+ENTRYPOINT ["python3 /flywheel/v0/run.py"]
