@@ -1,14 +1,17 @@
 import os
 import sys
 import json
+import logging
 
 
 
+def exists(file, ext=-1, is_expected=True, quit_on_error=True):
 
-def exists(file, log, ext=-1, is_expected=True, quit_on_error=True):
     # Generic if_exists function that takes care of logging in the event of nonexistance
     # is_expected indicates if we're checking to see if it's there or not. True: we want it to be there, false: we don't
     # quit_on_error tells us if we sys.exit on failure or not.
+    log = logging.getLogger()
+
     path_exists=os.path.exists(file)
 
     # If we find the file and are expecting to

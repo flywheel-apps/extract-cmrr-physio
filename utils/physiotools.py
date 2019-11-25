@@ -133,9 +133,12 @@ def interp_vals(old_tics, old_vals, new_tics, fill='linear'):
             if ot >= len(old_tics):
                 break
 
-            if nt == old_tics[ot]:
+            while nt >= old_tics[ot]:
                 new_vals[it] = old_vals[ot]
                 ot+=1
+                if ot >= len(old_tics):
+                    break
+
     else:
         f = interpolate.interp1d(old_tics, old_vals, kind=fill,
                                  fill_value=(old_vals[0], old_vals[-1]), bounds_error=False)
@@ -148,7 +151,8 @@ def log2dict(physio_log):
 
     """
     This function takes a standard physio log file as output by CMRR-MB (https://github.com/CMRR-C2P/MB/)
-    and converts them to machine-friendly python dictionaries
+    and converts them to machine-friendly python dictionaries.
+
     :param physio_log: the .log file produced by the CMRR-MB script
     :return: the dictionary is returned
     """

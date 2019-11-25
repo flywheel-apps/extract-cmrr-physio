@@ -13,6 +13,7 @@ class physio:
     physio is a class that stores a raw siemens physio recording as a dictionary, and has various build-in functions
     that call on the toolkit "physiotools" to perform various necessary preprocessing steps for bidsification and
     general data management.
+
     """
     def __init__(self, logfile):
 
@@ -69,7 +70,8 @@ class physio:
     def load_physio(self):
         """
         Loads in the physio file specified by self.logfile and generates a physio dict, form which all processing is
-        based off of
+        based off of.
+
         """
         try:
             self.physio_dict = pt.log2dict(self.logfile)
@@ -93,6 +95,7 @@ class physio:
         """
         Sets the info.log file (which is also a physio object) so this object can reference it and obtain things like
         when each volume was acquired in tic times.
+
         :param phys_obj: the phy_obj (a special object just for the info.log file from CMRR extraction)
         """
         try:
@@ -152,6 +155,7 @@ class physio:
         This generates a new tic array, depending on the "tic_fill_strategy" value, set by the user.  If set to "none",
         this function can be called and will return the same array value, which will then be stored in "acq_tics"
         calls pythontools.create_new_tics
+
         """
 
         #print(self.tic_fill_strategy)
@@ -182,7 +186,7 @@ class physio:
         """
         This function takes the raw channel values and the new custom tics array (from create_new_tic_array)
         and interpolates the raw data to that new tic timeseries.  Interpolation method is based on the value
-        "interp_method",
+        "interp_method"
         """
 
         try:
@@ -376,6 +380,7 @@ class physio:
         """
         This function plots the physio QC (a plot of all channels, and all trigger signals).
         with a text string that can be anything, which is printed on the left side of the plot
+
         :param qa_text: text to be printed on the graph
         :param output_path: the output path to save the graph to
         """

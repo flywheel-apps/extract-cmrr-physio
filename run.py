@@ -23,6 +23,7 @@ def data_classifier(context, physio_dict, file):
     custom dicts object.  Each physio dict has a key "['bids_file']" and "['log_file'].  if these files were created,
     these keys point to that filename.  Loop through the log files and the bids files and set metadata based off
     dictionary parameters and inhereted properties.
+
     :param context: gear context
     :type context: class: `flywheel.gear_context.GearContext`
     :param output_dir: the directory to save the metadata file in.
@@ -43,7 +44,7 @@ def data_classifier(context, physio_dict, file):
             'ImageType does not indicate physio, however by virtue of the gear running successfully, we will assume physio type')
 
     # Attempt to recover classification info from the input file
-    (config, modality, classification) = ([], None, {})
+    (modality, classification) = (None, {})
     try:
         classification = inputs['DICOM_ARCHIVE']['object']['classification']
         classification['Custom'] = ['Physio']
@@ -105,6 +106,7 @@ def data_classifier(context, physio_dict, file):
 def setup_logger(gear_context):
     """
     This function simply sets up the gear logger to Flywheel SSE best practices
+
     :param gear_context: the gear context
     :type gear_context: class: `flywheel.gear_context.GearContext`
     """
@@ -122,6 +124,7 @@ def extract_zipped_dicom(gear_context, dicom):
     This function extracts a zipped dicom archive and check for the correct number of resulting files for a physio
     DICOM archive.  Errors are thrown if there's more or less than 1 dicom file extracted, or if the unzipped file
     is not of the supported type.
+
     :param gear_context: the gear context
     :type gear_context: class: `flywheel.gear_context.GearContext`
     :param dicom: the zipped dicom file archive
@@ -133,7 +136,7 @@ def extract_zipped_dicom(gear_context, dicom):
     try:
         supported_filetypes = [".dcm", ".IMA"]
 
-        fu.exists(dicom, gear_context.log, '.zip')
+        fu.exists(dicom, '.zip')
         zip_base = op.splitext(op.split(dicom)[-1])[0]
 
         # Now we need to unzip it:
@@ -173,6 +176,7 @@ def extract_zipped_dicom(gear_context, dicom):
 def physio_json_2_bids_metadata(context, bids_file, json):
     """
     This function updates the info section of the metadata for file bids_file with info found in the json dict.
+
     :param context: gear context
     :type context: class: `flywheel.gear_context.GearContext`
     :param bids_file: filename to update the metadata of
@@ -224,8 +228,6 @@ def main():
             # Create a 'dry run' flag for debugging
             gear_context.custom_dict['dry-run'] = gear_context.config['Dry-Run']
 
-            # Set up a field for physio dictionaries (used for bidsifying and qc)
-            gear_context.custom_dict['physio-dicts'] = {}
 
             # Extract matches keyword for BIDS data format
             matches = gear_context.get_input('DICOM_ARCHIVE')['object']['info']
@@ -262,7 +264,7 @@ def main():
 
             if not info_file:
                 gear_context.log.warning('No Info file found.  Failed Extraction?')
-                return
+                raise Exception('No Info File Found')
             else:
                 info_file = info_file[0]
 
@@ -349,7 +351,7 @@ def main():
                 gear_context.log.info('Removing .log files')
                 cmd = ['/bin/rm', output_dir, '*.log']
 
-                exec_command(cmd)
+                exec_command(gear_context, cmd)
 
         # Catch any exceptions
         except Exception as e:
@@ -357,13 +359,28 @@ def main():
             sys.exit(1)
 
 
+class Object():
+    pass
+
+
+def non_gear_run():
+    gear_context=Object()
+    gear_context.log=logging.getLogger()
+    gear_context.custom_dict={'dry-run':False}
+    gear_context.output_dir = '/flywheel/v0/output'
+    gear_context.config={'Fill_Value':-999,'Interpolation_Method':'fill','Missing_Data':'gap_fill'}
+    gear_context.config['Process_Data'] = True
+
+
+
+
+
 if __name__ == '__main__':
     main()
 
-## TODO: Add data quality flag for large gaps and lots of high/low cutoff values
+
 
 ## TODO: Speciofy that all modifications are done are raw
 ## TODO: Unchecking "Process data" really does NOTHING
 ## TODO: bids validator on .tsv files
 
-## TODO: ECG "nan" bug

@@ -3,6 +3,7 @@
 *.xml
 utils/__pycache__
 /utils/cfmm2tar/
+.DS_Store
 /utils/extract_cmrr_physio.py
 output/
 input/
