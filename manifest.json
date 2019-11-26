@@ -8,7 +8,7 @@
   "source": "https://github.com/flywheel-apps/extract-cmrr-physio/releases/tag/1.1.0",
   "license": "MIT",
   "flywheel": "0",
-  "version": "1.1.0_dev5",
+  "version": "1.2.0",
   "custom": {
     "docker-image": "flywheel/extract-cmrr-physio:1.1.0",
     "gear-builder": {
@@ -28,6 +28,7 @@
       }
     }
   },
+
   "config": {
     "Generate_Bids": {
       "description": "Generate BIDS compatible physio files",
