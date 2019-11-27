@@ -10,10 +10,10 @@
   "flywheel": "0",
   "version": "1.2.0",
   "custom": {
-    "docker-image": "flywheel/extract-cmrr-physio:1.1.0",
+    "docker-image": "flywheel/extract-cmrr-physio:1.2.0",
     "gear-builder": {
       "category": "converter",
-      "image": "flywheel/extract-cmrr-physio:1.1.0"
+      "image": "flywheel/extract-cmrr-physio:1.2.0"
     }
   },
   "inputs": {
