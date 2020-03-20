@@ -551,9 +551,19 @@ class physio:
                 # Zip the file
                 zipped_physio_output = physio_output + '.gz'
                 
-                with open(physio_output, 'rb') as f_in:
-                    with gzip.open(zipped_physio_output, 'wb') as f_out:
-                        shutil.copyfileobj(f_in, f_out)
+                try:
+                    
+                    with open(physio_output, 'rb') as f_in:
+                        with gzip.open(zipped_physio_output, 'wb') as f_out:
+                            shutil.copyfileobj(f_in, f_out)
+                            
+                    os.remove(physio_output)
+                    
+                except Exception as e:
+                    self.log.warning('Unable to zip .tsv file...was it saved successfully?')
+                    self.log.exception(e)
+                
+                
                 
                 physio_output = zipped_physio_output
 
