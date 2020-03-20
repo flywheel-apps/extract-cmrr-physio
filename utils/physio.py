@@ -6,7 +6,8 @@ import os
 import pydicom
 import os.path as op
 import json
-
+import shutil
+import gzip
 
 class physio:
     """
@@ -548,11 +549,13 @@ class physio:
 
             if zip_output:
                 # Zip the file
-                gzip_command = ['gzip', '-f', physio_output]
-                # exec_command(context, gzip_command)
-                # context.custom_dict['physio-dicts'][physio]['bids_tsv'] = physio_output + '.gz'
-
-
+                zipped_physio_output = physio_output + '.gz'
+                
+                with open(physio_output, 'rb') as f_in:
+                    with gzip.open(zipped_physio_output, 'wb') as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+                
+                physio_output = zipped_physio_output
 
             json_output = op.join(output_dir, '{}_recording-{}_physio.json'.format(matches, label))
             json_dict['StartTime'] = (temp_tics[0] - info_dict.ACQ_START_TICS[0]) * self.tictime
