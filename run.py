@@ -327,7 +327,7 @@ def main():
                 # If BIDS is desired:
                 if gear_context.config['Generate_Bids']:
                     # Generate the BIDS files
-                    physio.bids_o_matic_9000(processed=process, matches=matches, zip_output=False,
+                    physio.bids_o_matic_9000(processed=process, matches=matches, zip_output=True,
                                              save_json=gear_context.config['Generate_json'])
 
                     # Set their metadata for BIDS export
@@ -380,7 +380,7 @@ if __name__ == '__main__':
 
 
 
-## TODO: Speciofy that all modifications are done are raw
-## TODO: Unchecking "Process data" really does NOTHING
-## TODO: bids validator on .tsv files
+# TODO: Speciofy that all modifications are done are raw
+# TODO: Unchecking "Process data" really does NOTHING
+# TODO: bids validator on .tsv files
 
