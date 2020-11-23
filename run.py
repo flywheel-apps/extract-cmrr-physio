@@ -135,25 +135,38 @@ def extract_zipped_dicom(gear_context, dicom):
 
     try:
         supported_filetypes = [".dcm", ".IMA"]
+        is_zip = fu.exists(dicom, '.zip', quit_on_error=False)
+        
+        if is_zip:
+            zip_base = op.splitext(op.split(dicom)[-1])[0]
+    
+            # Now we need to unzip it:
+            uz_dir = op.join('/tmp', 'unzipped_dicom')
+            unzip_dicom_command = ['unzip', '-o', dicom, '-d', uz_dir]
+            ###########################################################################
+            # Try to run the unzip command:
+            exec_command(gear_context, unzip_dicom_command)
 
-        fu.exists(dicom, '.zip')
-        zip_base = op.splitext(op.split(dicom)[-1])[0]
+            # Now we locate the raw unzipped dicom
+            for ft in supported_filetypes:
+                raw_dicom = glob.glob(op.join(uz_dir, zip_base, '*{}'.format(ft)))
+                gear_context.log.info(
+                    'Looking for {}'.format(op.join(uz_dir, zip_base, '*{}'.format(ft))))
 
-        # Now we need to unzip it:
-        uz_dir = op.join('/tmp', 'unzipped_dicom')
-        unzip_dicom_command = ['unzip', '-o', dicom, '-d', uz_dir]
-        ###########################################################################
-        # Try to run the unzip command:
-        exec_command(gear_context, unzip_dicom_command)
+                # If we found an expected filetype, let's assume that's what were looking for
+                if len(raw_dicom) == 1:
+                    break
+        
+        else:
+            gear_context.log.debug('Unzipped file found as input')
+            if any([fu.exists(dicom,ft, quit_on_error=False) for ft in supported_filetypes]):
+                # If we have an unzipped dicom, we just need to copy it to the unzip directory
+                raw_dicom = [dicom]
+            else:
+                gear_context.log.error('Filetype must be .dcm or .IMA')
+                
+            
 
-        # Now we locate the raw unzipped dicom
-        for ft in supported_filetypes:
-            raw_dicom = glob.glob(op.join(uz_dir, zip_base, '*{}'.format(ft)))
-            gear_context.log.info('Looking for {}'.format(op.join(uz_dir, zip_base, '*{}'.format(ft))))
-
-            # If we found an expected filetype, let's assume that's what were looking for
-            if len(raw_dicom) == 1:
-                break
 
         # If we found too many, exit
         if len(raw_dicom) > 1:

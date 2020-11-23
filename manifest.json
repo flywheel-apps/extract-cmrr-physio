@@ -8,7 +8,7 @@
   "source": "https://github.com/flywheel-apps/extract-cmrr-physio/releases",
   "license": "MIT",
   "flywheel": "0",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "custom": {
     "docker-image": "flywheel/extract-cmrr-physio:1.2.3",
     "gear-builder": {
