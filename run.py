@@ -2,7 +2,7 @@
 import flywheel
 from utils import futils as fu
 import logging
-from utils.Common import exec_command
+from utils.Common import exec_command, set_metadata
 import os.path as op
 import os
 import glob
@@ -11,6 +11,7 @@ import json
 from pprint import pprint as pp
 import copy
 import utils.physio as phys
+from pathlib import Path
 
 ##-------- Standard Flywheel Gear Structure --------##
 flywheelv0 = "/flywheel/v0"
@@ -38,7 +39,7 @@ def data_classifier(context, physio_dict, file):
     image_info = inputs['DICOM_ARCHIVE']['object']['info']
 
     # Check if physio is in the input object's information anywhere:
-    imtype = image_info['ImageType']
+    imtype = image_info.get('ImageType')
     if not any([i == 'PHYSIO' for i in imtype]):
         context.log.warning(
             'ImageType does not indicate physio, however by virtue of the gear running successfully, we will assume physio type')
@@ -95,12 +96,12 @@ def data_classifier(context, physio_dict, file):
     else:
         ftype = 'unknown'
 
-    fdict = {'name': file,
+    fdict = {'name': Path(file).name,
              'type': ftype,
              'classification': copy.deepcopy(classification),
              'modality': modality}
 
-    context.update_file_metadata(file, fdict)
+    set_metadata(context, file, fdict)
 
 
 def setup_logger(gear_context):
@@ -138,6 +139,7 @@ def extract_zipped_dicom(gear_context, dicom):
         is_zip = fu.exists(dicom, '.zip', quit_on_error=False)
         
         if is_zip:
+            gear_context.log.debug('found a zip file')
             zip_base = op.splitext(op.split(dicom)[-1])[0]
     
             # Now we need to unzip it:
@@ -206,7 +208,7 @@ def physio_json_2_bids_metadata(context, bids_file, json):
             }
         }
 
-        context.update_file_metadata(bids_file, update_metadata)
+        set_metadata(context, bids_file, update_metadata)
     except Exception as e:
         raise Exception("Error in physio_json_2_bids_metadata") from e
 
@@ -273,6 +275,7 @@ def main():
             # First let's check the output.  We'll try to make this robust for any measurement:
             gear_context.log.debug('Globbing Physio')
             all_physio = glob.glob(op.join(physio_output_dir, '*.log'))
+            gear_context.log.debug(all_physio)
             info_file = glob.glob(op.join(physio_output_dir, '*Info.log'))
 
             if not info_file:
@@ -365,6 +368,7 @@ def main():
                 cmd = ['/bin/rm', output_dir, '*.log']
 
                 exec_command(gear_context, cmd)
+
 
         # Catch any exceptions
         except Exception as e:

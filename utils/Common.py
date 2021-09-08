@@ -1,6 +1,7 @@
 import os, os.path as op
 import subprocess as sp
 import re
+from pathlib import Path
 
 def BuildCommandList(command, ParamList):
     """
@@ -55,3 +56,10 @@ def exec_command(context, command, shell=False, stdout_msg=None):
             raise Exception(stderr)
 
 
+def set_metadata(context, file, fdict):
+    # In the event that there is a full directory in front of the file name, remove it.
+    context.log.debug(f'original file name: {file}')
+    file2 = Path(file).name
+    context.log.debug(f'Updating file metadata for new filename: {file2}')
+    context.update_file_metadata(file2, fdict)
+    return
