@@ -55,9 +55,9 @@ def exists(file, ext=-1, is_expected=True, quit_on_error=True):
         file_ext = '.'+'.'.join(split_by_period[-num_periods:])
 
         if not file_ext == ext:
-            log.error('Incorrect file type for input {}, expected {}, got {}'.format(file, ext, file_ext))
-            
+
             if quit_on_error:
+                log.error('Incorrect file type for input {}, expected {}, got {}'.format(file, ext, file_ext))
                 sys.exit(1)
             else:
                 return(False)
