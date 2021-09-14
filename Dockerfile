@@ -58,10 +58,3 @@ COPY utils ${FLYWHEEL}/utils
 
 # Configure entrypoint
 ENTRYPOINT ["python3 /flywheel/v0/run.py"]
-
-RUN apt-get install library &&
-RUN mv file1 /tif &&
-RUN pip install
-
-
-
