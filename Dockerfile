@@ -27,6 +27,7 @@ RUN apt-get -qq update && apt-get -qq install -y \
      pip3 install --upgrade pip && \
      rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
+
 # Really weird bug, setting LD_LIBRARY_PATH breaks pip, so run all the pip stuff before setting that.
 COPY requirements.txt ./requirements.txt
 
@@ -57,3 +58,10 @@ COPY utils ${FLYWHEEL}/utils
 
 # Configure entrypoint
 ENTRYPOINT ["python3 /flywheel/v0/run.py"]
+
+RUN apt-get install library &&
+RUN mv file1 /tif &&
+RUN pip install
+
+
+
