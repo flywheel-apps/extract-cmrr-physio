@@ -135,7 +135,7 @@ def extract_zipped_dicom(gear_context, dicom):
     """
 
     try:
-        supported_filetypes = [".dcm", ".IMA"]
+        supported_filetypes = [".dcm", ".IMA", ".dicom"]
         is_zip = fu.exists(dicom, '.zip', quit_on_error=False)
         
         if is_zip:
@@ -155,6 +155,11 @@ def extract_zipped_dicom(gear_context, dicom):
                 gear_context.log.info(
                     'Looking for {}'.format(op.join(uz_dir, zip_base, '*{}'.format(ft))))
 
+                if len(raw_dicom) == 0:
+                    raw_dicom = glob.glob(op.join(uz_dir, '*{}'.format(ft)))
+                    gear_context.log.info(
+                        'Looking for {}'.format(op.join(uz_dir, '*{}'.format(ft))))
+
                 # If we found an expected filetype, let's assume that's what were looking for
                 if len(raw_dicom) == 1:
                     break
@@ -166,6 +171,7 @@ def extract_zipped_dicom(gear_context, dicom):
                 raw_dicom = [dicom]
             else:
                 gear_context.log.error('Filetype must be .dcm or .IMA')
+                raw_dicom = []
                 
             
 
@@ -257,6 +263,9 @@ def main():
             ######################################################
             # Now we need to unzip our input file, and check if it exists
             dicom = gear_context.get_input_path('DICOM_ARCHIVE')
+            Path(dicom).rename(Path(dicom.replace(' ', '')))
+            dicom = dicom.replace(' ', '')
+
             raw_dicom = extract_zipped_dicom(gear_context, dicom)
 
             #########################################
